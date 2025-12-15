@@ -1,4 +1,0 @@
-[submodule ".cursor"]
-	path = .cursor
-	url = https://github.com/Byrde/.cursor
-	branch = main
