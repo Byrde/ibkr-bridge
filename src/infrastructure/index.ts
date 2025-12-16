@@ -1,5 +1,6 @@
 export * from './gateway-client';
 export * from './ibkr-session-repository';
+export * from './ibkr-session-manager';
 export * from './ibkr-gateway-manager';
 export * from './ibkr-auth-service';
 export * from './ibkr-account-repository';

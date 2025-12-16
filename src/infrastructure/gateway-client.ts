@@ -1,19 +1,32 @@
 import https from 'https';
 import type { GatewayManager } from '../domain/gateway';
+import type { SessionManager } from '../domain/session';
 
 export interface GatewayClientConfig {
   baseUrl: string;
   timeout: number;
 }
 
+// Paths that should bypass re-auth wait (used during auth itself)
+const AUTH_PATHS = [
+  '/v1/api/iserver/auth/status',
+  '/v1/api/iserver/auth/ssodh/init',
+  '/v1/api/tickle',
+  '/v1/api/logout',
+];
+
 /**
  * HTTP client for communicating with the IBKR Client Portal Gateway.
  * All infrastructure implementations use this to make requests to the gateway.
  * 
  * Uses native https module to handle self-signed certificates from the gateway.
+ * 
+ * When a SessionManager is configured, requests will wait during re-authentication
+ * to avoid failing due to session expiry.
  */
 export class GatewayClient {
   private readonly agent: https.Agent;
+  private sessionManager: SessionManager | null = null;
 
   constructor(
     private readonly config: GatewayClientConfig,
@@ -23,6 +36,14 @@ export class GatewayClient {
     this.agent = new https.Agent({
       rejectUnauthorized: false,
     });
+  }
+
+  /**
+   * Set the session manager for re-auth awareness.
+   * Must be called after construction due to circular dependency.
+   */
+  setSessionManager(sessionManager: SessionManager): void {
+    this.sessionManager = sessionManager;
   }
 
   async get<T>(path: string): Promise<T> {
@@ -41,7 +62,18 @@ export class GatewayClient {
     return this.config.baseUrl;
   }
 
-  private request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    // Wait for re-auth if in progress (skip for auth-related paths)
+    if (this.sessionManager && !AUTH_PATHS.includes(path)) {
+      if (this.sessionManager.isReauthenticating()) {
+        await this.sessionManager.waitForReauth();
+      }
+    }
+
+    return this.executeRequest<T>(method, path, body);
+  }
+
+  private executeRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.config.baseUrl);
       const bodyData = body ? JSON.stringify(body) : '';
@@ -100,3 +132,4 @@ export class GatewayClient {
     });
   }
 }
+

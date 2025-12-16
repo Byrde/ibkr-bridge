@@ -118,3 +118,38 @@ export interface AuthenticationService {
   logout(): Promise<void>;
   isAuthenticated(): boolean;
 }
+
+/**
+ * Manages session lifecycle including automatic re-authentication.
+ * Coordinates between heartbeat monitoring and re-auth triggers.
+ */
+export interface SessionManager {
+  /**
+   * Start the session manager with credentials.
+   * Performs initial authentication and starts heartbeat monitoring.
+   */
+  start(credentials: Credentials): Promise<void>;
+
+  /**
+   * Stop the session manager.
+   * Clears heartbeat interval and optionally logs out.
+   */
+  stop(): Promise<void>;
+
+  /**
+   * Get current session state.
+   */
+  getSession(): Session;
+
+  /**
+   * Check if currently re-authenticating.
+   * Useful for request queuing.
+   */
+  isReauthenticating(): boolean;
+
+  /**
+   * Wait for re-authentication to complete.
+   * Resolves when session is authenticated, rejects on failure.
+   */
+  waitForReauth(): Promise<void>;
+}

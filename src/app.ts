@@ -4,6 +4,7 @@ import { createAuthMiddleware } from './api/auth-middleware';
 import { healthRoutes, accountRoutes, orderRoutes, marketDataRoutes } from './api/routes';
 import { IbkrGatewayManager } from './infrastructure/ibkr-gateway-manager';
 import { IbkrSessionRepository } from './infrastructure/ibkr-session-repository';
+import { IbkrSessionManager } from './infrastructure/ibkr-session-manager';
 import { IbkrAuthService } from './infrastructure/ibkr-auth-service';
 import { IbkrAccountRepository } from './infrastructure/ibkr-account-repository';
 import { IbkrOrderRepository } from './infrastructure/ibkr-order-repository';
@@ -20,17 +21,27 @@ export async function createApp(config: Config) {
     port: config.gateway.port,
   });
 
+  const sessionRepository = new IbkrSessionRepository();
+
   const gatewayClient = new GatewayClient(
     { baseUrl: gatewayManager.getBaseUrl(), timeout: 30000 },
     gatewayManager
   );
 
-  const sessionRepository = new IbkrSessionRepository();
   const authService = new IbkrAuthService(
     gatewayClient,
     sessionRepository,
     config.ibkr.totpSecret ? { secret: config.ibkr.totpSecret } : undefined
   );
+
+  const sessionManager = new IbkrSessionManager(
+    authService,
+    sessionRepository,
+    config.session.heartbeatIntervalMs
+  );
+
+  // Wire up gateway client to wait during re-authentication
+  gatewayClient.setSessionManager(sessionManager);
 
   const accountRepository = new IbkrAccountRepository(gatewayClient);
   const orderRepository = new IbkrOrderRepository(gatewayClient);
@@ -56,5 +67,5 @@ export async function createApp(config: Config) {
     { prefix: '/api/v1' }
   );
 
-  return { fastify, gatewayManager, authService };
+  return { fastify, gatewayManager, sessionManager };
 }
