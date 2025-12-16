@@ -58,7 +58,7 @@ export function loadConfig(): Config {
     ibkr: {
       username: requireEnv('IBKR_USERNAME'),
       password: requireEnv('IBKR_PASSWORD'),
-      totpSecret: optionalEnv('IBKR_TOTP_SECRET'),
+      totpSecret: requireEnv('IBKR_TOTP_SECRET'),
     },
 
     gateway: {
