@@ -44,6 +44,7 @@ export class GatewayClient {
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.config.baseUrl);
+      const bodyData = body ? JSON.stringify(body) : '';
 
       const options: https.RequestOptions = {
         hostname: url.hostname,
@@ -52,7 +53,9 @@ export class GatewayClient {
         method,
         agent: this.agent,
         headers: {
+          'User-Agent': 'IBKR-REST-Bridge/1.0',
           'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(bodyData),
           Accept: 'application/json',
         },
         timeout: this.config.timeout,
@@ -89,8 +92,8 @@ export class GatewayClient {
         reject(new Error(`Gateway request timed out after ${this.config.timeout}ms`));
       });
 
-      if (body) {
-        req.write(JSON.stringify(body));
+      if (bodyData) {
+        req.write(bodyData);
       }
 
       req.end();

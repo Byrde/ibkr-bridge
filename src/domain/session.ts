@@ -53,6 +53,43 @@ export interface SsoInitResponse {
   error?: string;
   /** Authentication challenge (hex string) if additional auth required */
   challenge?: string;
+  /** Prompt type (e.g., '2fa' for TOTP challenge) */
+  prompts?: string[];
+}
+
+/**
+ * Response from POST /iserver/auth/ssodh/init when submitting 2FA response.
+ */
+export interface TotpChallengeResponse {
+  /** Whether the challenge was successfully completed */
+  authenticated?: boolean;
+  /** Whether there's an error */
+  error?: string;
+  /** Additional message */
+  message?: string;
+}
+
+/**
+ * Response from POST /tickle
+ * Used to keep the session alive and check session validity.
+ */
+export interface TickleResponse {
+  /** Session ID */
+  session?: string;
+  /** SSO session expiration timestamp (milliseconds since epoch) */
+  ssoExpires?: number;
+  /** Collission flag (another session may be competing) */
+  collission?: boolean;
+  /** User ID */
+  userId?: number;
+  /** Whether the session is valid for trading */
+  iserver?: {
+    authStatus?: {
+      authenticated?: boolean;
+      competing?: boolean;
+      connected?: boolean;
+    };
+  };
 }
 
 export interface SessionRepository {
@@ -61,11 +98,23 @@ export interface SessionRepository {
   clearSession(): void;
 }
 
+/**
+ * Result of a heartbeat operation.
+ */
+export interface HeartbeatResult {
+  /** Whether the session is still valid */
+  valid: boolean;
+  /** When the SSO session expires (if known) */
+  ssoExpires?: Date;
+  /** Whether there's a competing session */
+  competing?: boolean;
+}
+
 export interface AuthenticationService {
   login(credentials: Credentials): Promise<Session>;
   submitTOTP(code: string): Promise<Session>;
   checkAuthStatus(): Promise<AuthStatusResponse>;
-  heartbeat(): Promise<void>;
+  heartbeat(): Promise<HeartbeatResult>;
   logout(): Promise<void>;
   isAuthenticated(): boolean;
 }

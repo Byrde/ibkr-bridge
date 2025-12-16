@@ -12,6 +12,20 @@ Set the following environment variables before using the CLI:
 | `BRIDGE_USERNAME` | Basic auth username | (required) |
 | `BRIDGE_PASSWORD` | Basic auth password | (required) |
 
+### Docker Container Configuration
+
+When running the bridge in Docker, configure these additional environment variables:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `IBKR_USERNAME` | Your IBKR account username | Yes |
+| `IBKR_PASSWORD` | Your IBKR account password | Yes |
+| `IBKR_TOTP_SECRET` | Base32-encoded TOTP secret for 2FA | **Yes*** |
+
+> **Important:** Your IBKR account **must** have TOTP configured as the **only** 2FA method. The bridge does not support IB Key (mobile push), SMS, or multiple 2FA methods. See the main README for setup instructions.
+
+*The `IBKR_TOTP_SECRET` is required for automated login. Without it, the bridge cannot complete the 2FA challenge.
+
 ## Usage
 
 ```bash

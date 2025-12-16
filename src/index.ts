@@ -65,10 +65,9 @@ async function main() {
     if (authenticated) {
       // Start heartbeat interval only if authenticated
       const heartbeatInterval = setInterval(async () => {
-        try {
-          await authService.heartbeat();
-        } catch (error) {
-          console.error('Heartbeat failed:', error instanceof Error ? error.message : error);
+        const result = await authService.heartbeat();
+        if (!result.valid) {
+          console.warn('Session is no longer valid, consider re-authentication');
         }
       }, config.session.heartbeatIntervalMs);
 

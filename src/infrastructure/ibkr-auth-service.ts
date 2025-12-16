@@ -1,114 +1,148 @@
+import { createHmac } from 'crypto';
 import { authenticator } from 'otplib';
 import type {
   AuthenticationService,
   AuthStatusResponse,
   Credentials,
+  HeartbeatResult,
   Session,
   SessionRepository,
   SsoInitResponse,
+  TickleResponse,
   TOTPSecret,
+  TotpChallengeResponse,
 } from '../domain/session';
 import type { GatewayClient } from './gateway-client';
+import { HeadlessLoginService } from './headless-login-service';
+import { createLogger } from './logger';
 
-/**
- * Error thrown when IBKR authentication fails.
- */
+const log = createLogger('Auth');
+
 export class AuthenticationError extends Error {
   constructor(
     message: string,
-    public readonly code: 'NOT_CONNECTED' | 'SESSION_INIT_FAILED' | 'COMPETING_SESSION' | 'UNKNOWN'
+    public readonly code:
+      | 'NOT_CONNECTED'
+      | 'SESSION_INIT_FAILED'
+      | 'COMPETING_SESSION'
+      | 'TOTP_REQUIRED'
+      | 'TOTP_FAILED'
+      | 'HEADLESS_LOGIN_FAILED'
+      | 'UNKNOWN'
   ) {
     super(message);
     this.name = 'AuthenticationError';
   }
 }
 
+export interface HeadlessLoginProvider {
+  login(credentials: {
+    username: string;
+    password: string;
+    totpSecret?: string;
+  }): Promise<{ success: boolean; error?: string; requiresManualIntervention?: boolean }>;
+}
+
 /**
  * Implements IBKR authentication using the Client Portal Gateway API.
  *
- * The authentication flow:
- * 1. User logs in via the gateway web interface (https://localhost:5000)
- * 2. This service calls /iserver/auth/ssodh/init to initialize the brokerage session
+ * Authentication flow:
+ * 1. HeadlessLoginService automates the gateway web login using Playwright
+ * 2. Session is verified via /iserver/auth/status
  * 3. Session is maintained via periodic /tickle calls (heartbeat)
- *
- * Note: The gateway does not support programmatic credential submission.
- * Initial authentication must be done through the web interface.
  */
 export class IbkrAuthService implements AuthenticationService {
+  private headlessLoginService: HeadlessLoginProvider;
+
   constructor(
     private readonly client: GatewayClient,
     private readonly sessionRepo: SessionRepository,
-    private readonly totpSecret?: TOTPSecret
-  ) {}
+    private readonly totpSecret?: TOTPSecret,
+    headlessLoginService?: HeadlessLoginProvider
+  ) {
+    this.headlessLoginService = headlessLoginService ?? new HeadlessLoginService(client.getBaseUrl(), {
+      headless: true,
+      timeout: 60000,
+    });
+  }
 
-  /**
-   * Initializes a brokerage session after web-based login.
-   *
-   * This does NOT submit credentials programmatically. The user must first
-   * authenticate via the gateway web interface. This method then initializes
-   * the API session for trading.
-   *
-   * @param _credentials - Currently unused; web login required
-   * @returns The current session state
-   * @throws AuthenticationError if session initialization fails
-   */
-  async login(_credentials: Credentials): Promise<Session> {
+  async login(credentials: Credentials): Promise<Session> {
     this.sessionRepo.updateSession({ status: 'authenticating' });
 
     try {
-      // First check if we're already connected to the gateway
-      const status = await this.checkAuthStatus();
+      // Check if already authenticated
+      try {
+        const status = await this.checkAuthStatus();
+        if (status.authenticated) {
+          log.info('Already authenticated');
+          this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+          return this.sessionRepo.getSession();
+        }
+      } catch {
+        // Expected when not logged in
+        log.debug('No existing session');
+      }
 
-      if (!status.connected) {
+      // Perform headless browser login
+      log.info('Starting browser login');
+      const loginResult = await this.headlessLoginService.login({
+        username: credentials.username,
+        password: credentials.password,
+        totpSecret: this.totpSecret?.secret,
+      });
+
+      if (!loginResult.success) {
         this.sessionRepo.updateSession({ status: 'disconnected' });
-        throw new AuthenticationError(
-          'Gateway is not connected to IBKR backend. Please login via the gateway web interface.',
-          'NOT_CONNECTED'
-        );
+        if (loginResult.requiresManualIntervention) {
+          throw new AuthenticationError(loginResult.error ?? 'Login requires manual intervention', 'TOTP_REQUIRED');
+        }
+        throw new AuthenticationError(loginResult.error ?? 'Headless login failed', 'HEADLESS_LOGIN_FAILED');
       }
 
-      // If already authenticated, just update session and return
-      if (status.authenticated) {
-        this.sessionRepo.updateSession({
-          status: 'authenticated',
-          authenticatedAt: new Date(),
-        });
-        return this.sessionRepo.getSession();
+      log.info('Browser login successful, verifying session');
+
+      // Give gateway time to register the session
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Verify session status
+      let finalStatus;
+      try {
+        finalStatus = await this.checkAuthStatus();
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        finalStatus = await this.checkAuthStatus();
       }
 
-      // Initialize the brokerage session
-      const initResponse = await this.initializeBrokerageSession();
-
-      if (initResponse.authenticated) {
-        this.sessionRepo.updateSession({
-          status: 'authenticated',
-          authenticatedAt: new Date(),
-        });
-      } else if (initResponse.competing) {
-        // Another session is active; we've requested to compete
-        throw new AuthenticationError(
-          'Another session is active. Session competition initiated.',
-          'COMPETING_SESSION'
-        );
-      } else if (initResponse.error) {
-        throw new AuthenticationError(
-          `Session initialization failed: ${initResponse.error}`,
-          'SESSION_INIT_FAILED'
-        );
+      if (finalStatus.authenticated) {
+        log.info('Session authenticated');
+        this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+      } else if (finalStatus.competing) {
+        throw new AuthenticationError('Another session is active', 'COMPETING_SESSION');
       } else {
-        // Connected but not authenticated - likely need web login first
-        this.sessionRepo.updateSession({ status: 'disconnected' });
-        throw new AuthenticationError(
-          'Session not authenticated. Please complete login via the gateway web interface.',
-          'SESSION_INIT_FAILED'
-        );
+        // Try SSO init as fallback
+        log.debug('Trying SSO init fallback');
+        try {
+          const initResponse = await this.initializeBrokerageSession();
+          if (initResponse.authenticated) {
+            this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+          } else if (this.isTotpChallenge(initResponse)) {
+            await this.handleTotpChallenge(initResponse.challenge!);
+          } else {
+            throw new AuthenticationError('Session initialization failed', 'SESSION_INIT_FAILED');
+          }
+        } catch (initError) {
+          const retryStatus = await this.checkAuthStatus();
+          if (retryStatus.authenticated) {
+            this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+          } else {
+            throw initError;
+          }
+        }
       }
 
       return this.sessionRepo.getSession();
     } catch (error) {
-      if (error instanceof AuthenticationError) {
-        throw error;
-      }
+      if (error instanceof AuthenticationError) throw error;
       this.sessionRepo.updateSession({ status: 'disconnected' });
       throw new AuthenticationError(
         `Authentication failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -117,9 +151,6 @@ export class IbkrAuthService implements AuthenticationService {
     }
   }
 
-  /**
-   * Checks the current authentication status with the gateway.
-   */
   async checkAuthStatus(): Promise<AuthStatusResponse> {
     const response = await this.client.get<AuthStatusResponse>('/v1/api/iserver/auth/status');
     return {
@@ -131,29 +162,19 @@ export class IbkrAuthService implements AuthenticationService {
     };
   }
 
-  /**
-   * Initializes the brokerage session.
-   * Called after the user has logged in via the web interface.
-   */
   private async initializeBrokerageSession(): Promise<SsoInitResponse> {
-    // Generate a pseudo-random machine ID for session tracking
     const machineId = this.generateMachineId();
     const mac = this.generateMacAddress();
 
-    const response = await this.client.post<SsoInitResponse>('/v1/api/iserver/auth/ssodh/init', {
+    return await this.client.post<SsoInitResponse>('/v1/api/iserver/auth/ssodh/init', {
       compete: true,
       locale: 'en_US',
       mac,
       machineId,
-      username: '-', // Placeholder; actual auth done via web
+      username: '-',
     });
-
-    return response;
   }
 
-  /**
-   * Generates an 8-character alphanumeric machine ID.
-   */
   private generateMachineId(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
@@ -163,9 +184,6 @@ export class IbkrAuthService implements AuthenticationService {
     return result;
   }
 
-  /**
-   * Generates a MAC-address-like string for session identification.
-   */
   private generateMacAddress(): string {
     const hex = '0123456789ABCDEF';
     const pairs: string[] = [];
@@ -175,26 +193,123 @@ export class IbkrAuthService implements AuthenticationService {
     return pairs.join('-');
   }
 
-  async submitTOTP(_code: string): Promise<Session> {
-    // TOTP is handled during web login, not via API
-    // This method is a placeholder for future TOTP challenge handling
-    this.sessionRepo.updateSession({
-      status: 'authenticated',
-      authenticatedAt: new Date(),
-    });
+  private isTotpChallenge(response: SsoInitResponse): boolean {
+    return !response.authenticated && response.challenge !== undefined && response.challenge.length > 0;
+  }
+
+  private async handleTotpChallenge(challenge: string): Promise<void> {
+    this.sessionRepo.updateSession({ status: 'awaiting_totp' });
+
+    if (!this.totpSecret) {
+      throw new AuthenticationError('TOTP challenge received but no TOTP secret configured', 'TOTP_REQUIRED');
+    }
+
+    const totpCode = this.generateTOTP();
+    if (!totpCode) {
+      throw new AuthenticationError('Failed to generate TOTP code', 'TOTP_FAILED');
+    }
+
+    const response = this.computeTotpResponse(challenge, totpCode);
+    await this.submitTotpResponse(response);
+  }
+
+  computeTotpResponse(challenge: string, totpCode: string): string {
+    const challengeBuffer = Buffer.from(challenge, 'hex');
+    const hmac = createHmac('sha1', totpCode);
+    hmac.update(challengeBuffer);
+    return hmac.digest('hex');
+  }
+
+  private async submitTotpResponse(response: string): Promise<void> {
+    const result = await this.client.post<TotpChallengeResponse>('/v1/api/iserver/auth/ssodh/init', { response });
+
+    if (result.authenticated) {
+      this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+    } else {
+      throw new AuthenticationError(result.error ?? result.message ?? 'TOTP verification failed', 'TOTP_FAILED');
+    }
+  }
+
+  async submitTOTP(code: string): Promise<Session> {
+    const session = this.sessionRepo.getSession();
+    if (session.status !== 'awaiting_totp') {
+      throw new AuthenticationError('No pending TOTP challenge', 'TOTP_FAILED');
+    }
+
+    const initResponse = await this.initializeBrokerageSession();
+
+    if (!this.isTotpChallenge(initResponse)) {
+      if (initResponse.authenticated) {
+        this.sessionRepo.updateSession({ status: 'authenticated', authenticatedAt: new Date() });
+        return this.sessionRepo.getSession();
+      }
+      throw new AuthenticationError('No TOTP challenge in response', 'TOTP_FAILED');
+    }
+
+    const response = this.computeTotpResponse(initResponse.challenge!, code);
+    await this.submitTotpResponse(response);
     return this.sessionRepo.getSession();
   }
 
   generateTOTP(): string | null {
-    if (!this.totpSecret) {
-      return null;
-    }
+    if (!this.totpSecret) return null;
     return authenticator.generate(this.totpSecret.secret);
   }
 
-  async heartbeat(): Promise<void> {
-    await this.client.post('/v1/api/tickle');
-    this.sessionRepo.updateSession({ lastHeartbeat: new Date() });
+  async heartbeat(): Promise<HeartbeatResult> {
+    const now = new Date();
+
+    try {
+      const response = await this.client.post<TickleResponse>('/v1/api/tickle');
+      this.sessionRepo.updateSession({ lastHeartbeat: now });
+
+      // Parse SSO expiration if present
+      const ssoExpires = response.ssoExpires ? new Date(response.ssoExpires) : undefined;
+
+      // Check if session is still valid via iserver auth status
+      const isAuthenticated = response.iserver?.authStatus?.authenticated ?? true;
+      const isCompeting = response.iserver?.authStatus?.competing ?? response.collission ?? false;
+
+      // Check if SSO session has expired
+      const ssoExpired = ssoExpires ? ssoExpires <= now : false;
+
+      // Session is valid if authenticated and not expired
+      const valid = isAuthenticated && !ssoExpired;
+
+      if (!valid) {
+        log.warn('Session expired or no longer authenticated', {
+          authenticated: isAuthenticated,
+          ssoExpired,
+          ssoExpires: ssoExpires?.toISOString(),
+        });
+        this.sessionRepo.updateSession({ status: 'expired' });
+      } else if (isCompeting) {
+        log.warn('Competing session detected');
+      } else {
+        log.debug('Heartbeat successful', {
+          ssoExpires: ssoExpires?.toISOString(),
+        });
+      }
+
+      return {
+        valid,
+        ssoExpires,
+        competing: isCompeting,
+      };
+    } catch (error) {
+      log.error('Heartbeat failed', error instanceof Error ? error.message : String(error));
+
+      // On heartbeat failure, we don't immediately mark as expired
+      // The session might still be valid, just a network hiccup
+      // However, we do update lastHeartbeat to track the attempt
+      this.sessionRepo.updateSession({ lastHeartbeat: now });
+
+      // Return invalid to signal the caller should handle this
+      return {
+        valid: false,
+        competing: false,
+      };
+    }
   }
 
   async logout(): Promise<void> {

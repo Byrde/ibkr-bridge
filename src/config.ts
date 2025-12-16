@@ -34,7 +34,15 @@ function requireEnv(name: string): string {
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
-  return value;
+  // Strip surrounding quotes (Docker --env-file may include them)
+  return value.replace(/^["']|["']$/g, '').trim();
+}
+
+function optionalEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value) return undefined;
+  // Strip surrounding quotes (Docker --env-file may include them)
+  return value.replace(/^["']|["']$/g, '').trim();
 }
 
 export function loadConfig(): Config {
@@ -50,7 +58,7 @@ export function loadConfig(): Config {
     ibkr: {
       username: requireEnv('IBKR_USERNAME'),
       password: requireEnv('IBKR_PASSWORD'),
-      totpSecret: process.env.IBKR_TOTP_SECRET,
+      totpSecret: optionalEnv('IBKR_TOTP_SECRET'),
     },
 
     gateway: {
@@ -64,3 +72,7 @@ export function loadConfig(): Config {
     },
   };
 }
+
+
+
+

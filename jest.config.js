@@ -8,4 +8,6 @@ module.exports = {
     '^.+\\.tsx?$': 'ts-jest',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  // Quiet console output during tests
+  silent: true,
 };

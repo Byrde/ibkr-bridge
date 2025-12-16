@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -9,15 +9,39 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install dependencies for IBKR Gateway
-# - OpenJDK 11 for running the Java-based gateway
+# Install dependencies for IBKR Gateway and Playwright
+# - OpenJDK 17 for running the Java-based gateway (11 not in bookworm, 17 is compatible)
 # - curl and unzip for downloading the gateway
-# - bash for running the gateway scripts
-RUN apk add --no-cache openjdk11-jre-headless curl unzip bash
+# - Playwright browser dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jre-headless \
+    curl \
+    unzip \
+    wget \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download and install IBKR Client Portal Gateway
 # The gateway extracts to /opt/ibkr with bin/, root/, dist/ subdirectories
@@ -32,6 +56,10 @@ RUN mkdir -p /opt/ibkr && \
 # Copy the bridge application
 COPY package*.json ./
 RUN npm ci --omit=dev
+
+# Install Playwright browsers (Chromium only for smaller image)
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN npx playwright install chromium
 
 COPY --from=builder /app/dist ./dist
 

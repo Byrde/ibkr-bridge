@@ -23,3 +23,6 @@ export interface MarketDataRepository {
   getQuote(conid: number): Promise<Quote | null>;
   getQuotes(conids: number[]): Promise<Quote[]>;
 }
+
+
+

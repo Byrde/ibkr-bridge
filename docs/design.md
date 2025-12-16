@@ -19,7 +19,7 @@
     * The competitive advantage of this service is its ability to fully automate and abstract the complex IBKR authentication flow, including TOTP 2FA handling and transparent session maintenance. Without this, the trading APIs would be unusable.
 
 * **Bounded Contexts:**
-    * - **Authentication Context:** Handles bridge API authentication (Basic Auth) and IBKR Gateway authentication (credentials + TOTP). Manages session lifecycle including login, challenge response, session validation, and re-authentication.
+    * - **Authentication Context:** Handles bridge API authentication (Basic Auth) and IBKR Gateway authentication (credentials + TOTP). Manages session lifecycle including login, challenge response, session validation, and re-authentication. Uses headless browser automation (Playwright) to programmatically complete the gateway's web-based login flow, since IBKR's OAuth 1.0a is restricted to institutional accounts.
     * - **Gateway Context:** Manages the IBKR Client Portal Gateway process lifecycle. Responsible for starting, monitoring, health-checking, and restarting the gateway process.
     * - **Trading Context:** Handles order placement, modification, and cancellation. Translates REST order requests into Gateway API calls and normalizes responses.
     * - **Market Data Context:** Handles instrument lookup and quote retrieval. Translates REST market data requests into Gateway API calls.

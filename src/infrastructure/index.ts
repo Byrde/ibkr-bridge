@@ -5,3 +5,5 @@ export * from './ibkr-auth-service';
 export * from './ibkr-account-repository';
 export * from './ibkr-order-repository';
 export * from './ibkr-market-data-repository';
+export * from './headless-login-service';
+export * from './logger';
