@@ -264,7 +264,19 @@ export class IbkrAuthService implements AuthenticationService {
       this.sessionRepo.updateSession({ lastHeartbeat: now });
 
       // Parse SSO expiration if present
-      const ssoExpires = response.ssoExpires ? new Date(response.ssoExpires) : undefined;
+      // The gateway returns ssoExpires as milliseconds until expiration, not an absolute timestamp
+      // Convert to absolute timestamp by adding to current time
+      let ssoExpires: Date | undefined;
+      if (response.ssoExpires !== undefined && response.ssoExpires > 0) {
+        // If value is small (less than year 2000 in ms), treat as relative milliseconds
+        // Otherwise treat as absolute timestamp
+        const YEAR_2000_MS = 946684800000;
+        if (response.ssoExpires < YEAR_2000_MS) {
+          ssoExpires = new Date(now.getTime() + response.ssoExpires);
+        } else {
+          ssoExpires = new Date(response.ssoExpires);
+        }
+      }
 
       // Check if session is still valid via iserver auth status
       const isAuthenticated = response.iserver?.authStatus?.authenticated ?? true;
