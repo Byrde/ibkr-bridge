@@ -1,0 +1,689 @@
+openapi: 3.0.3
+info:
+  title: IBKR Trading API
+  description: Interactive Brokers Gateway API for trading operations, account management, and market data
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+  - url: https://api.example.com/api/v1
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check the health status of the gateway and authentication session
+      operationId: getHealth
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/status:
+    get:
+      summary: Authentication status
+      description: Get the current authentication session status
+      operationId: getAuthStatus
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: Authentication status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthStatusResponse'
+
+  /account:
+    get:
+      summary: Get account details
+      description: Retrieve details for the primary account including balances and positions
+      operationId: getAccount
+      tags:
+        - Account
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: No accounts found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /account/positions:
+    get:
+      summary: Get account positions
+      description: Retrieve all positions for the primary account
+      operationId: getPositions
+      tags:
+        - Account
+      responses:
+        '200':
+          description: List of positions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  positions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Position'
+        '404':
+          description: No accounts found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /instruments:
+    get:
+      summary: Search instruments
+      description: Search for tradable instruments by symbol or name
+      operationId: searchInstruments
+      tags:
+        - Market Data
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query string
+          schema:
+            type: string
+          example: AAPL
+      responses:
+        '200':
+          description: List of matching instruments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  instruments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstrumentSearchResult'
+        '400':
+          description: Missing or invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /quotes/{conid}:
+    get:
+      summary: Get quote
+      description: Retrieve market data quote for a specific contract
+      operationId: getQuote
+      tags:
+        - Market Data
+      parameters:
+        - name: conid
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+          example: 265598
+      responses:
+        '200':
+          description: Quote data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+        '400':
+          description: Invalid contract ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Quote not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orders:
+    get:
+      summary: Get orders
+      description: Retrieve all orders for the primary account
+      operationId: getOrders
+      tags:
+        - Orders
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '404':
+          description: No accounts found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create order
+      description: Place a new order for the primary account
+      operationId: createOrder
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: No accounts found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orders/{orderId}:
+    put:
+      summary: Modify order
+      description: Modify an existing order
+      operationId: modifyOrder
+      tags:
+        - Orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifyOrderRequest'
+      responses:
+        '200':
+          description: Order modified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: No accounts found or order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Cancel order
+      description: Cancel an existing order
+      operationId: cancelOrder
+      tags:
+        - Orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Order cancelled successfully
+        '404':
+          description: No accounts found or order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - gateway
+        - session
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+          description: Overall health status
+        gateway:
+          type: object
+          required:
+            - status
+            - healthy
+            - restartCount
+          properties:
+            status:
+              type: string
+              description: Gateway process status
+            healthy:
+              type: boolean
+              description: Whether gateway is healthy
+            pid:
+              type: integer
+              nullable: true
+              description: Process ID
+            startedAt:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the gateway was started
+            restartCount:
+              type: integer
+              description: Number of times gateway has restarted
+        session:
+          type: object
+          required:
+            - authenticated
+          properties:
+            authenticated:
+              type: boolean
+              description: Whether session is authenticated
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+
+    AuthStatusResponse:
+      type: object
+      required:
+        - status
+        - authenticated
+        - reauthenticating
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [disconnected, authenticating, awaiting_totp, authenticated, expired]
+          description: Current session status
+        authenticated:
+          type: boolean
+          description: Whether session is authenticated
+        reauthenticating:
+          type: boolean
+          description: Whether currently re-authenticating
+        authenticatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When authentication occurred
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When session expires
+        lastHeartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last heartbeat timestamp
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+
+    Account:
+      type: object
+      required:
+        - accountId
+        - accountType
+        - baseCurrency
+        - balances
+        - positions
+      properties:
+        accountId:
+          type: string
+          description: Account identifier
+        accountType:
+          type: string
+          description: Type of account
+        baseCurrency:
+          type: string
+          description: Base currency of the account
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+
+    Balance:
+      type: object
+      required:
+        - currency
+        - cash
+        - totalValue
+        - buyingPower
+      properties:
+        currency:
+          type: string
+          description: Currency code
+        cash:
+          type: number
+          format: double
+          description: Available cash
+        totalValue:
+          type: number
+          format: double
+          description: Total account value
+        buyingPower:
+          type: number
+          format: double
+          description: Available buying power
+
+    Position:
+      type: object
+      required:
+        - conid
+        - symbol
+        - type
+        - quantity
+        - avgCost
+        - marketValue
+        - unrealizedPnl
+      properties:
+        conid:
+          type: integer
+          description: Contract ID
+        symbol:
+          type: string
+          description: Symbol ticker
+        type:
+          type: string
+          description: Instrument type
+        quantity:
+          type: number
+          format: double
+          description: Position size
+        avgCost:
+          type: number
+          format: double
+          description: Average cost per share
+        marketValue:
+          type: number
+          format: double
+          description: Current market value
+        unrealizedPnl:
+          type: number
+          format: double
+          description: Unrealized profit/loss
+
+    InstrumentSearchResult:
+      type: object
+      required:
+        - conid
+        - symbol
+        - description
+        - type
+        - exchange
+      properties:
+        conid:
+          type: integer
+          description: Contract ID
+        symbol:
+          type: string
+          description: Symbol ticker
+        description:
+          type: string
+          description: Instrument description
+        type:
+          type: string
+          description: Instrument type
+        exchange:
+          type: string
+          description: Primary exchange
+
+    Quote:
+      type: object
+      required:
+        - conid
+        - symbol
+        - timestamp
+      properties:
+        conid:
+          type: integer
+          description: Contract ID
+        symbol:
+          type: string
+          description: Symbol ticker
+        lastPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Last traded price
+        bidPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Current bid price
+        askPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Current ask price
+        bidSize:
+          type: number
+          format: double
+          nullable: true
+          description: Bid size
+        askSize:
+          type: number
+          format: double
+          nullable: true
+          description: Ask size
+        volume:
+          type: number
+          format: double
+          nullable: true
+          description: Trading volume
+        timestamp:
+          type: string
+          format: date-time
+          description: Quote timestamp
+
+    Order:
+      type: object
+      required:
+        - orderId
+        - accountId
+        - instrument
+        - side
+        - type
+        - quantity
+        - status
+        - filledQuantity
+        - createdAt
+        - updatedAt
+      properties:
+        orderId:
+          type: string
+          description: Order identifier
+        accountId:
+          type: string
+          description: Account identifier
+        instrument:
+          $ref: '#/components/schemas/Instrument'
+        side:
+          type: string
+          enum: [buy, sell]
+          description: Order side
+        type:
+          type: string
+          enum: [market, limit]
+          description: Order type
+        quantity:
+          type: number
+          format: double
+          description: Order quantity
+        limitPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Limit price (for limit orders)
+        status:
+          type: string
+          enum: [pending, submitted, filled, partially_filled, cancelled, rejected]
+          description: Order status
+        filledQuantity:
+          type: number
+          format: double
+          description: Filled quantity
+        avgFillPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Average fill price
+        createdAt:
+          type: string
+          format: date-time
+          description: Order creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Order last update timestamp
+
+    Instrument:
+      type: object
+      required:
+        - conid
+        - symbol
+        - type
+      properties:
+        conid:
+          type: integer
+          description: Contract ID
+        symbol:
+          type: string
+          description: Symbol ticker
+        type:
+          type: string
+          enum: [stock, option, future, forex, other]
+          description: Instrument type
+        exchange:
+          type: string
+          nullable: true
+          description: Exchange
+        currency:
+          type: string
+          nullable: true
+          description: Currency
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - conid
+        - side
+        - type
+        - quantity
+      properties:
+        conid:
+          type: integer
+          description: Contract ID
+          example: 265598
+        side:
+          type: string
+          enum: [buy, sell]
+          description: Order side
+          example: buy
+        type:
+          type: string
+          enum: [market, limit]
+          description: Order type
+          example: limit
+        quantity:
+          type: number
+          format: double
+          description: Order quantity
+          example: 100
+        limitPrice:
+          type: number
+          format: double
+          nullable: true
+          description: Limit price (required for limit orders)
+          example: 150.50
+
+    ModifyOrderRequest:
+      type: object
+      properties:
+        quantity:
+          type: number
+          format: double
+          nullable: true
+          description: New order quantity
+          example: 150
+        limitPrice:
+          type: number
+          format: double
+          nullable: true
+          description: New limit price
+          example: 151.00
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: Authentication and session management
+  - name: Account
+    description: Account information and positions
+  - name: Market Data
+    description: Market data and instrument search
+  - name: Orders
+    description: Order management
