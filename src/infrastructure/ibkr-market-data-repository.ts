@@ -7,7 +7,7 @@ import type { GatewayClient } from './gateway-client';
 
 /** Raw contract section from IBKR secdef/search response */
 interface IbkrContractSection {
-  conid?: string;
+  conid?: string | number;
   secType?: string;
   exchange?: string;
   listingExchange?: string;
@@ -15,7 +15,7 @@ interface IbkrContractSection {
 
 /** Raw instrument response from IBKR secdef/search endpoint */
 interface IbkrSearchResult {
-  conid?: number;
+  conid?: string | number;
   companyHeader?: string;
   companyName?: string;
   symbol?: string;
@@ -47,10 +47,17 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
     const symbol = raw.symbol ?? '';
     const description = raw.companyName ?? raw.description ?? raw.companyHeader ?? '';
 
+    // Skip entries without a symbol
+    if (!symbol) {
+      return results;
+    }
+
+    const topLevelConid = this.parseConid(raw.conid) ?? 0;
+
     // If sections exist, create an entry for each tradeable contract
     if (raw.sections && raw.sections.length > 0) {
       for (const section of raw.sections) {
-        const conid = section.conid ? parseInt(section.conid, 10) : raw.conid ?? 0;
+        const conid = this.parseConid(section.conid) ?? topLevelConid;
         if (conid === 0) continue;
 
         results.push({
@@ -61,10 +68,10 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
           exchange: section.listingExchange ?? section.exchange ?? '',
         });
       }
-    } else if (raw.conid) {
+    } else if (topLevelConid > 0) {
       // Fallback: use top-level conid if no sections
       results.push({
-        conid: raw.conid,
+        conid: topLevelConid,
         symbol,
         description,
         type: 'stock',
@@ -73,6 +80,13 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
     }
 
     return results;
+  }
+
+  private parseConid(value: string | number | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number') return value;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? undefined : parsed;
   }
 
   private mapSecurityType(secType?: string): string {
