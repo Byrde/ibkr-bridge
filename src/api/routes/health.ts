@@ -11,7 +11,39 @@ export async function healthRoutes(
   fastify: FastifyInstance,
   deps: HealthRouteDeps
 ): Promise<void> {
-  fastify.get('/health', async () => {
+  fastify.get('/health', {
+    schema: {
+      tags: ['Health'],
+      summary: 'Health check',
+      description: 'Check the health status of the gateway and authentication session',
+      security: [],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['healthy', 'degraded'] },
+            gateway: {
+              type: 'object',
+              properties: {
+                status: { type: 'string' },
+                healthy: { type: 'boolean' },
+                pid: { type: ['number', 'null'] },
+                startedAt: { type: ['string', 'null'] },
+                restartCount: { type: 'number' },
+              },
+            },
+            session: {
+              type: 'object',
+              properties: {
+                authenticated: { type: 'boolean' },
+              },
+            },
+            timestamp: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async () => {
     const gatewayHealthy = await deps.gatewayManager.isHealthy();
     const sessionAuthenticated = deps.authService.isAuthenticated();
     const processInfo = deps.gatewayManager.getProcessInfo();

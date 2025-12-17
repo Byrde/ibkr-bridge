@@ -61,6 +61,22 @@ npm install
 | `HOST` | Bridge API host | No (default: 0.0.0.0) |
 | `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
 
+## API Documentation
+
+Interactive OpenAPI/Swagger documentation is available at:
+
+```
+http://localhost:3000/documentation
+```
+
+The documentation is automatically generated from the route schemas and provides:
+- Interactive API testing
+- Request/response schemas
+- Authentication configuration
+- Example requests
+
+See [docs/swagger.md](docs/swagger.md) for more details.
+
 ## Usage
 
 ### Development
