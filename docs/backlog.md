@@ -12,13 +12,13 @@
 | **API Authentication** | Implement Basic Auth middleware | Requests without valid Basic Auth header rejected with 401; credentials validated against env vars; authenticated requests proceed. | `Complete` |  | Secures all bridge endpoints. Validated via integration tests. |
 | **Account API** | Implement account info endpoint | GET /account returns account ID, balances, and currency; response follows consistent schema. | `Complete` |  | Read-only, lower risk starting point for API. Validated in Docker. |
 | **Account API** | Implement positions endpoint | GET /account/positions returns list of current positions with symbol, quantity, avg cost, market value. | `Complete` |  | Depends on account info. Validated in Docker. |
-| **Account API** | Implement orders list endpoint | GET /account/orders returns list of open/recent orders with status, filled quantity, timestamps. | `TODO` |  | Shows pending and historical orders. |
+| **Account API** | Implement orders list endpoint | GET /account/orders returns list of open/recent orders with status, filled quantity, timestamps. | `Complete` |  | Shows pending and historical orders. Validated in Docker - returns orders from IBKR gateway. |
 | **Market Data API** | Implement instrument search endpoint | GET /instruments?q={query} returns matching instruments with symbol, type, exchange, conid. | `TODO` |  | Required to resolve symbols for trading. |
 | **Market Data API** | Implement quote endpoint | GET /quotes/{conid} returns current bid, ask, last, volume for instrument. | `TODO` |  | Requires valid conid from instrument search. |
 | **Trading API** | Implement order placement endpoint | POST /orders creates new order; supports market and limit order types; returns order ID and initial status. | `TODO` |  | Core trading capability. |
 | **Trading API** | Implement order modification endpoint | PUT /orders/{orderId} modifies pending order; supports quantity and price changes; returns updated status. | `TODO` |  | Only works on pending orders. |
 | **Trading API** | Implement order cancellation endpoint | DELETE /orders/{orderId} cancels pending order; returns confirmation or error if not cancellable. | `TODO` |  | Only works on pending orders. |
-| **API Authentication** | Implement auth status endpoint | GET /auth/status returns current session state (authenticated, expired, disconnected); includes lastHeartbeat timestamp; useful for external monitoring. | `TODO` |  | Exposes internal session state for clients/monitoring. |
+| **API Authentication** | Implement auth status endpoint | GET /auth/status returns current session state (authenticated, expired, disconnected); includes lastHeartbeat timestamp; useful for external monitoring. | `Complete` |  | Exposes internal session state for clients/monitoring. |
 
 Notes:
 - The `Status` column must follow: `TODO` → `In Progress` → `Ready to Test` → `Complete`.

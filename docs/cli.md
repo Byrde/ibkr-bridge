@@ -52,6 +52,34 @@ npm run cli -- health
 }
 ```
 
+### auth:status
+
+Get current authentication session status.
+
+```bash
+npm run cli -- auth:status
+```
+
+**Response:**
+```json
+{
+  "status": "authenticated",
+  "authenticated": true,
+  "reauthenticating": false,
+  "authenticatedAt": "2024-01-01T00:00:00.000Z",
+  "lastHeartbeat": "2024-01-01T00:05:00.000Z",
+  "timestamp": "2024-01-01T00:05:30.000Z"
+}
+```
+
+**Fields:**
+- `status` - Session state: `disconnected`, `authenticating`, `awaiting_totp`, `authenticated`, or `expired`
+- `authenticated` - Boolean indicating if currently authenticated
+- `reauthenticating` - Boolean indicating if re-authentication is in progress
+- `authenticatedAt` - Timestamp when session was authenticated
+- `expiresAt` - Timestamp when session expires (if known)
+- `lastHeartbeat` - Timestamp of last successful heartbeat
+
 ### account
 
 Get account information including balances.

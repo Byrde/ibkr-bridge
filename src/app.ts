@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import type { Config } from './config';
 import { createAuthMiddleware } from './api/auth-middleware';
-import { healthRoutes, accountRoutes, orderRoutes, marketDataRoutes } from './api/routes';
+import { healthRoutes, accountRoutes, orderRoutes, marketDataRoutes, authRoutes } from './api/routes';
 import { IbkrGatewayManager } from './infrastructure/ibkr-gateway-manager';
 import { IbkrSessionRepository } from './infrastructure/ibkr-session-repository';
 import { IbkrSessionManager } from './infrastructure/ibkr-session-manager';
@@ -63,6 +63,7 @@ export async function createApp(config: Config) {
       await accountRoutes(instance, { accountRepository });
       await orderRoutes(instance, { orderRepository, accountRepository });
       await marketDataRoutes(instance, { marketDataRepository });
+      await authRoutes(instance, { sessionManager });
     },
     { prefix: '/api/v1' }
   );

@@ -57,6 +57,7 @@ Environment Variables:
 
 Commands:
   health                          Check bridge and gateway health
+  auth:status                     Get authentication session status
   account                         Get account information
   positions                       Get current positions
   orders                          List open orders
@@ -92,6 +93,12 @@ async function main(): Promise<void> {
     switch (command) {
       case 'health': {
         const result = await request('GET', '/api/v1/health');
+        printJson(result);
+        break;
+      }
+
+      case 'auth:status': {
+        const result = await request('GET', '/api/v1/auth/status');
         printJson(result);
         break;
       }
