@@ -13,6 +13,31 @@ interface IbkrContractSection {
   listingExchange?: string;
 }
 
+/**
+ * IBKR market data snapshot response.
+ * Field keys are numeric strings (e.g., "31", "84").
+ * Values may be strings with commas for thousands separators.
+ */
+interface IbkrSnapshotResponse {
+  conid: number;
+  conidEx?: string;
+  // Field 31: Last price
+  '31'?: string;
+  // Field 84: Bid price
+  '84'?: string;
+  // Field 85: Ask size
+  '85'?: string;
+  // Field 86: Ask price
+  '86'?: string;
+  // Field 88: Bid size
+  '88'?: string;
+  // Field 7762: Volume
+  '7762'?: string;
+  // Symbol (field 55)
+  '55'?: string;
+  _updated?: number;
+}
+
 /** Raw instrument response from IBKR secdef/search endpoint */
 interface IbkrSearchResult {
   conid?: string | number;
@@ -122,13 +147,47 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
   }
 
   async getQuotes(conids: number[]): Promise<Quote[]> {
+    if (conids.length === 0) {
+      return [];
+    }
+
     const conidList = conids.join(',');
-    await this.client.get<unknown[]>(
-      `/v1/api/iserver/marketdata/snapshot?conids=${conidList}&fields=31,84,85,86,87,88`
+    // Fields: 31=last, 55=symbol, 84=bid, 85=askSize, 86=ask, 88=bidSize, 7762=volume
+    const response = await this.client.get<IbkrSnapshotResponse[]>(
+      `/v1/api/iserver/marketdata/snapshot?conids=${conidList}&fields=31,55,84,85,86,88,7762`
     );
 
-    // TODO: Map IBKR response to domain Quotes
-    return [];
+    if (!Array.isArray(response)) {
+      return [];
+    }
+
+    return response
+      .filter((item) => item.conid !== undefined)
+      .map((item) => this.mapSnapshotToQuote(item));
+  }
+
+  private mapSnapshotToQuote(raw: IbkrSnapshotResponse): Quote {
+    return {
+      conid: raw.conid,
+      symbol: raw['55'] ?? '',
+      lastPrice: this.parseNumber(raw['31']),
+      bidPrice: this.parseNumber(raw['84']),
+      askPrice: this.parseNumber(raw['86']),
+      bidSize: this.parseNumber(raw['88']),
+      askSize: this.parseNumber(raw['85']),
+      volume: this.parseNumber(raw['7762']),
+      timestamp: raw._updated ? new Date(raw._updated) : new Date(),
+    };
+  }
+
+  private parseNumber(value: string | undefined): number | undefined {
+    if (value === undefined || value === '') {
+      return undefined;
+    }
+    // Remove commas used as thousands separators
+    const cleaned = value.replace(/,/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? undefined : parsed;
   }
 }
 

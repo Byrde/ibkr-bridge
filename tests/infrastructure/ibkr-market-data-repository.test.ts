@@ -232,4 +232,102 @@ describe('IbkrMarketDataRepository', () => {
       expect(results[1].exchange).toBe('LSE');
     });
   });
+
+  describe('getQuote', () => {
+    it('returns quote with all fields mapped correctly', async () => {
+      mockClient.get.mockResolvedValue([
+        {
+          conid: 265598,
+          '55': 'AAPL',
+          '31': '168.42',
+          '84': '168.41',
+          '86': '168.43',
+          '88': '1,300',
+          '85': '600',
+          '7762': '52,345,678',
+          _updated: 1712596911593,
+        },
+      ]);
+
+      const quote = await repository.getQuote(265598);
+
+      expect(quote).not.toBeNull();
+      expect(quote).toEqual({
+        conid: 265598,
+        symbol: 'AAPL',
+        lastPrice: 168.42,
+        bidPrice: 168.41,
+        askPrice: 168.43,
+        bidSize: 1300,
+        askSize: 600,
+        volume: 52345678,
+        timestamp: new Date(1712596911593),
+      });
+      expect(mockClient.get).toHaveBeenCalledWith(
+        '/v1/api/iserver/marketdata/snapshot?conids=265598&fields=31,55,84,85,86,88,7762'
+      );
+    });
+
+    it('returns null when response is empty array', async () => {
+      mockClient.get.mockResolvedValue([]);
+
+      const quote = await repository.getQuote(265598);
+
+      expect(quote).toBeNull();
+    });
+
+    it('returns null when response is not an array', async () => {
+      mockClient.get.mockResolvedValue({ error: 'something' });
+
+      const quote = await repository.getQuote(265598);
+
+      expect(quote).toBeNull();
+    });
+  });
+
+  describe('getQuotes', () => {
+    it('returns multiple quotes for multiple conids', async () => {
+      mockClient.get.mockResolvedValue([
+        { conid: 265598, '55': 'AAPL', '31': '168.00', _updated: 1712596911593 },
+        { conid: 8314, '55': 'IBM', '31': '185.50', _updated: 1712596911594 },
+      ]);
+
+      const quotes = await repository.getQuotes([265598, 8314]);
+
+      expect(quotes).toHaveLength(2);
+      expect(quotes[0].symbol).toBe('AAPL');
+      expect(quotes[1].symbol).toBe('IBM');
+      expect(mockClient.get).toHaveBeenCalledWith(
+        '/v1/api/iserver/marketdata/snapshot?conids=265598,8314&fields=31,55,84,85,86,88,7762'
+      );
+    });
+
+    it('returns empty array for empty conids list', async () => {
+      const quotes = await repository.getQuotes([]);
+
+      expect(quotes).toEqual([]);
+      expect(mockClient.get).not.toHaveBeenCalled();
+    });
+
+    it('handles partial quote data gracefully', async () => {
+      mockClient.get.mockResolvedValue([
+        { conid: 265598, '55': 'AAPL', _updated: 1712596911593 },
+      ]);
+
+      const quotes = await repository.getQuotes([265598]);
+
+      expect(quotes).toHaveLength(1);
+      expect(quotes[0]).toEqual({
+        conid: 265598,
+        symbol: 'AAPL',
+        lastPrice: undefined,
+        bidPrice: undefined,
+        askPrice: undefined,
+        bidSize: undefined,
+        askSize: undefined,
+        volume: undefined,
+        timestamp: new Date(1712596911593),
+      });
+    });
+  });
 });
