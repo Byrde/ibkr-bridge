@@ -15,9 +15,9 @@
 | **Account API** | Implement orders list endpoint | GET /account/orders returns list of open/recent orders with status, filled quantity, timestamps. | `Complete` |  | Shows pending and historical orders. Validated in Docker - returns orders from IBKR gateway. |
 | **Market Data API** | Implement instrument search endpoint | GET /instruments?q={query} returns matching instruments with symbol, type, exchange, conid. | `Complete` |  | Required to resolve symbols for trading. Validated in Docker - returns instruments with proper conid parsing and security type mapping. |
 | **Market Data API** | Implement quote endpoint | GET /quotes/{conid} returns current bid, ask, last, volume for instrument. | `Complete` |  | Requires valid conid from instrument search. |
-| **Trading API** | Implement order placement endpoint | POST /orders creates new order; supports market and limit order types; returns order ID and initial status. | `TODO` |  | Core trading capability. |
-| **Trading API** | Implement order modification endpoint | PUT /orders/{orderId} modifies pending order; supports quantity and price changes; returns updated status. | `TODO` |  | Only works on pending orders. |
-| **Trading API** | Implement order cancellation endpoint | DELETE /orders/{orderId} cancels pending order; returns confirmation or error if not cancellable. | `TODO` |  | Only works on pending orders. |
+| **Trading API** | Implement order placement endpoint | POST /orders creates new order; supports market and limit order types; returns order ID and initial status. | `Complete` |  | Validated with paper trading. Auto-confirms IBKR precautionary messages. Supports market and limit orders. |
+| **Trading API** | Implement order modification endpoint | PUT /orders/{orderId} modifies pending order; supports quantity and price changes; returns updated status. | `Complete` |  | Validated with paper trading. Sends full order to IBKR as required by API. |
+| **Trading API** | Implement order cancellation endpoint | DELETE /orders/{orderId} cancels pending order; returns confirmation or error if not cancellable. | `Complete` |  | Validated with paper trading. Returns 204 on success. |
 | **API Authentication** | Implement auth status endpoint | GET /auth/status returns current session state (authenticated, expired, disconnected); includes lastHeartbeat timestamp; useful for external monitoring. | `Complete` |  | Exposes internal session state for clients/monitoring. |
 
 Notes:

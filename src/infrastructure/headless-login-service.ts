@@ -8,6 +8,8 @@ export interface LoginCredentials {
   username: string;
   password: string;
   totpSecret?: string;
+  /** If true, enables paper trading mode (no 2FA required) */
+  paperTrading?: boolean;
 }
 
 export interface LoginResult {
@@ -84,6 +86,39 @@ export class HeadlessLoginService {
   }
 
   private async enterCredentials(page: Page, credentials: LoginCredentials): Promise<void> {
+    // Enable paper trading mode if requested
+    if (credentials.paperTrading) {
+      log.debug('Enabling paper trading mode');
+      // The paper trading toggle uses a hidden checkbox with a visible label
+      // We need to click the label (for="toggle1") to toggle the checkbox
+      const paperSwitch = await page.$('input[name="paperSwitch"], input#toggle1');
+      if (paperSwitch) {
+        const isChecked = await paperSwitch.isChecked();
+        if (!isChecked) {
+          // Click the label instead of the hidden checkbox
+          const label = await page.$('label[for="toggle1"]');
+          if (label) {
+            await label.click();
+          } else {
+            // Fallback: use JavaScript to check the checkbox
+            await page.evaluate(`
+              (() => {
+                const checkbox = document.querySelector('input[name="paperSwitch"]');
+                if (checkbox) {
+                  checkbox.checked = true;
+                  checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+              })()
+            `);
+          }
+          await page.waitForTimeout(300);
+          log.debug('Paper trading toggle enabled');
+        }
+      } else {
+        log.warn('Paper trading toggle not found on login page');
+      }
+    }
+
     log.debug(`Entering username (length=${credentials.username.length})`);
     
     // Fill username using page.fill which is more reliable

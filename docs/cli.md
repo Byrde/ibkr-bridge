@@ -20,11 +20,26 @@ When running the bridge in Docker, configure these additional environment variab
 |----------|-------------|----------|
 | `IBKR_USERNAME` | Your IBKR account username | Yes |
 | `IBKR_PASSWORD` | Your IBKR account password | Yes |
-| `IBKR_TOTP_SECRET` | Base32-encoded TOTP secret for 2FA | **Yes*** |
+| `IBKR_TOTP_SECRET` | Base32-encoded TOTP secret for 2FA | Live only |
+| `IBKR_PAPER_TRADING` | Set to `true` for paper trading mode | No |
 
-> **Important:** Your IBKR account **must** have TOTP configured as the **only** 2FA method. The bridge does not support IB Key (mobile push), SMS, or multiple 2FA methods. See the main README for setup instructions.
+#### Live Trading
 
-*The `IBKR_TOTP_SECRET` is required for automated login. Without it, the bridge cannot complete the 2FA challenge.
+For live trading accounts, your IBKR account **must** have TOTP configured as the **only** 2FA method. The bridge does not support IB Key (mobile push), SMS, or multiple 2FA methods. The `IBKR_TOTP_SECRET` is required for automated login.
+
+#### Paper Trading
+
+For paper trading, set `IBKR_PAPER_TRADING=true`. Paper trading accounts:
+- Use separate credentials from live accounts (configure in IBKR Client Portal)
+- Do **not** require 2FA (no `IBKR_TOTP_SECRET` needed)
+- The login page automatically switches to paper trading mode
+
+**Example `.paper.env` file:**
+```
+IBKR_USERNAME=your_paper_username
+IBKR_PASSWORD=your_paper_password
+IBKR_PAPER_TRADING=true
+```
 
 ## Usage
 

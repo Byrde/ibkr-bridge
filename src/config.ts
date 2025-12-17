@@ -14,6 +14,8 @@ export interface Config {
     username: string;
     password: string;
     totpSecret?: string;
+    /** Paper trading mode - uses paper trading toggle, no 2FA required */
+    paperTrading: boolean;
   };
 
   // Gateway settings
@@ -58,7 +60,8 @@ export function loadConfig(): Config {
     ibkr: {
       username: requireEnv('IBKR_USERNAME'),
       password: requireEnv('IBKR_PASSWORD'),
-      totpSecret: requireEnv('IBKR_TOTP_SECRET'),
+      totpSecret: optionalEnv('IBKR_TOTP_SECRET'),
+      paperTrading: optionalEnv('IBKR_PAPER_TRADING')?.toLowerCase() === 'true',
     },
 
     gateway: {

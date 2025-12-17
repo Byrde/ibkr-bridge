@@ -9,11 +9,14 @@ import type {
   OrderType,
 } from '../domain/order';
 import type { GatewayClient } from './gateway-client';
+import { createLogger } from './logger';
+
+const log = createLogger('OrderRepo');
 
 /** Raw order response from IBKR Client Portal API */
 interface IbkrOrderResponse {
-  orderId?: string;
-  order_id?: string;
+  orderId?: number | string;
+  order_id?: number | string;
   acct?: string;
   account?: string;
   conid?: number;
@@ -30,11 +33,34 @@ interface IbkrOrderResponse {
   filled_quantity?: number;
   avgPrice?: number;
   avg_price?: number;
-  price?: number;
+  price?: number | string;
   status?: string;
   order_status?: string;
   lastExecutionTime_r?: number;
   lastExecutionTime?: string;
+}
+
+/** Response when order requires confirmation */
+interface IbkrOrderConfirmation {
+  id: string;
+  message: string[];
+  isSuppressed?: boolean;
+  messageIds?: string[];
+}
+
+/** Response after successful order placement */
+interface IbkrOrderPlaced {
+  order_id: string;
+  order_status?: string;
+  local_order_id?: string;
+}
+
+/** Reply endpoint response */
+interface IbkrReplyResponse {
+  order_id?: string;
+  order_status?: string;
+  text?: string;
+  error?: string;
 }
 
 export class IbkrOrderRepository implements OrderRepository {
@@ -51,25 +77,85 @@ export class IbkrOrderRepository implements OrderRepository {
       tif: 'DAY',
     };
 
-    const response = await this.client.post<{ order_id: string }[]>(
+    log.debug(`Placing order: ${JSON.stringify(ibkrOrder)}`);
+
+    // Initial order submission
+    const response = await this.client.post<(IbkrOrderConfirmation | IbkrOrderPlaced)[]>(
       `/v1/api/iserver/account/${accountId}/orders`,
       { orders: [ibkrOrder] }
     );
 
-    // TODO: Map response to domain Order
+    log.debug(`Order response: ${JSON.stringify(response)}`);
+
+    // Handle the response - may require confirmation or be directly placed
+    const result = await this.handleOrderResponse(response);
+
     return {
-      orderId: response[0]?.order_id ?? '',
+      orderId: result.orderId,
       accountId,
       instrument: { conid: request.conid, symbol: '', type: 'stock' },
       side: request.side,
       type: request.type,
       quantity: request.quantity,
       limitPrice: request.limitPrice,
-      status: 'submitted',
+      status: result.status,
       filledQuantity: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+  }
+
+  /**
+   * Handle order response, auto-confirming any precautionary messages.
+   * IBKR may return confirmation requests for various reasons (price constraints, etc.)
+   */
+  private async handleOrderResponse(
+    response: (IbkrOrderConfirmation | IbkrOrderPlaced)[]
+  ): Promise<{ orderId: string; status: OrderStatus }> {
+    if (!response || response.length === 0) {
+      throw new Error('Empty response from order placement');
+    }
+
+    const first = response[0];
+
+    // Check if this is a confirmation request (has 'id' and 'message' fields)
+    if ('id' in first && 'message' in first) {
+      const confirmation = first as IbkrOrderConfirmation;
+      log.info(`Order requires confirmation: ${confirmation.message.join('; ')}`);
+
+      // Auto-confirm the order
+      const replyResponse = await this.client.post<IbkrReplyResponse[]>(
+        `/v1/api/iserver/reply/${confirmation.id}`,
+        { confirmed: true }
+      );
+
+      log.debug(`Reply response: ${JSON.stringify(replyResponse)}`);
+
+      // The reply may itself require further confirmation (nested confirmations)
+      // Recursively handle until we get an order_id
+      if (replyResponse && replyResponse.length > 0) {
+        return this.handleOrderResponse(replyResponse as (IbkrOrderConfirmation | IbkrOrderPlaced)[]);
+      }
+
+      throw new Error('Order confirmation failed - no response');
+    }
+
+    // This is a successful order placement
+    if ('order_id' in first) {
+      const placed = first as IbkrOrderPlaced;
+      log.info(`Order placed: ${placed.order_id}`);
+      return {
+        orderId: placed.order_id,
+        status: this.mapStatus(placed.order_status ?? 'submitted', 0, 0),
+      };
+    }
+
+    // Check for error
+    if ('error' in first) {
+      throw new Error(`Order failed: ${(first as { error: string }).error}`);
+    }
+
+    throw new Error(`Unexpected order response: ${JSON.stringify(first)}`);
   }
 
   async modifyOrder(
@@ -77,14 +163,60 @@ export class IbkrOrderRepository implements OrderRepository {
     orderId: string,
     request: ModifyOrderRequest
   ): Promise<Order> {
-    await this.client.post(`/v1/api/iserver/account/${accountId}/order/${orderId}`, request);
+    log.debug(`Modifying order ${orderId}: ${JSON.stringify(request)}`);
 
-    // TODO: Fetch and return updated order
-    return {} as Order;
+    // First, fetch the existing order to get all required fields
+    const existingOrder = await this.getOrder(accountId, orderId);
+    if (!existingOrder) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    // IBKR requires the full order to be resent with modifications
+    // Build the complete order with updated fields
+    const modifyRequest = {
+      conid: existingOrder.instrument.conid,
+      side: existingOrder.side.toUpperCase(),
+      orderType: existingOrder.type === 'market' ? 'MKT' : 'LMT',
+      price: request.limitPrice ?? existingOrder.limitPrice,
+      quantity: request.quantity ?? existingOrder.quantity,
+      tif: 'DAY',
+    };
+
+    log.debug(`Sending modify request: ${JSON.stringify(modifyRequest)}`);
+
+    const response = await this.client.post<(IbkrOrderConfirmation | IbkrOrderPlaced)[]>(
+      `/v1/api/iserver/account/${accountId}/order/${orderId}`,
+      modifyRequest
+    );
+
+    log.debug(`Modify response: ${JSON.stringify(response)}`);
+
+    // Handle confirmation if needed
+    await this.handleOrderResponse(response);
+
+    // Fetch the updated order
+    const updatedOrder = await this.getOrder(accountId, orderId);
+    if (!updatedOrder) {
+      throw new Error(`Order ${orderId} not found after modification`);
+    }
+
+    return updatedOrder;
   }
 
   async cancelOrder(accountId: string, orderId: string): Promise<void> {
-    await this.client.delete(`/v1/api/iserver/account/${accountId}/order/${orderId}`);
+    log.debug(`Cancelling order ${orderId} for account ${accountId}`);
+
+    const response = await this.client.delete<{ msg?: string; error?: string }>(
+      `/v1/api/iserver/account/${accountId}/order/${orderId}`
+    );
+
+    log.debug(`Cancel response: ${JSON.stringify(response)}`);
+
+    if (response?.error) {
+      throw new Error(`Failed to cancel order: ${response.error}`);
+    }
+
+    log.info(`Order ${orderId} cancelled`);
   }
 
   async getOrders(accountId: string): Promise<Order[]> {
@@ -102,14 +234,15 @@ export class IbkrOrderRepository implements OrderRepository {
   }
 
   private mapToOrder(raw: IbkrOrderResponse, accountId: string): Order {
-    const orderId = raw.orderId ?? raw.order_id ?? '';
+    const orderId = String(raw.orderId ?? raw.order_id ?? '');
     const conid = raw.conid ?? 0;
     const symbol = raw.ticker ?? raw.symbol ?? '';
     const totalQty = raw.totalSize ?? raw.quantity ?? 0;
     const filledQty = raw.filledQuantity ?? raw.filled_quantity ?? 0;
     const remainingQty = raw.remainingQuantity ?? raw.remaining_quantity ?? totalQty;
     const avgPrice = raw.avgPrice ?? raw.avg_price;
-    const limitPrice = raw.price;
+    // price can be string ("100.00") or number
+    const limitPrice = raw.price !== undefined ? parseFloat(String(raw.price)) : undefined;
     const statusRaw = raw.status ?? raw.order_status ?? '';
     const sideRaw = raw.side ?? '';
     const typeRaw = raw.orderType ?? raw.order_type ?? '';
@@ -178,6 +311,7 @@ export class IbkrOrderRepository implements OrderRepository {
     return orders.find((o) => o.orderId === orderId) ?? null;
   }
 }
+
 
 
 

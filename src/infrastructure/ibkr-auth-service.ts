@@ -40,6 +40,7 @@ export interface HeadlessLoginProvider {
     username: string;
     password: string;
     totpSecret?: string;
+    paperTrading?: boolean;
   }): Promise<{ success: boolean; error?: string; requiresManualIntervention?: boolean }>;
 }
 
@@ -84,11 +85,12 @@ export class IbkrAuthService implements AuthenticationService {
       }
 
       // Perform headless browser login
-      log.info('Starting browser login');
+      log.info(`Starting browser login (paperTrading=${credentials.paperTrading ?? false})`);
       const loginResult = await this.headlessLoginService.login({
         username: credentials.username,
         password: credentials.password,
         totpSecret: this.totpSecret?.secret,
+        paperTrading: credentials.paperTrading,
       });
 
       if (!loginResult.success) {

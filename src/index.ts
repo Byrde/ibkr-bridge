@@ -43,8 +43,9 @@ async function main() {
     await sessionManager.start({
       username: config.ibkr.username,
       password: config.ibkr.password,
+      paperTrading: config.ibkr.paperTrading,
     });
-    console.log('Session manager started');
+    console.log(`Session manager started (paperTrading=${config.ibkr.paperTrading})`);
   } catch (error) {
     console.warn('Session manager failed to start, API will be in degraded mode:', error);
   }

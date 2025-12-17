@@ -2,9 +2,22 @@
 
 A Dockerized service that provides a clean, conventional RESTful API for trading on Interactive Brokers.
 
-## Important: IBKR Account 2FA Requirements
+## Live Trading vs Paper Trading
 
-**Your IBKR account MUST be configured with TOTP (Time-based One-Time Password) as the ONLY two-factor authentication method.**
+The bridge supports both live and paper trading accounts with different authentication requirements.
+
+### Paper Trading
+
+Paper trading accounts do **not** require 2FA. Simply set `IBKR_PAPER_TRADING=true` and provide your paper trading credentials.
+
+To get your paper trading credentials:
+1. Log into IBKR Client Portal with your live account
+2. Go to Settings → Account Settings → Paper Trading Account
+3. Configure/view your paper trading username and password
+
+### Live Trading (2FA Required)
+
+**Your live IBKR account MUST be configured with TOTP (Time-based One-Time Password) as the ONLY two-factor authentication method.**
 
 This bridge automates the login flow using headless browser automation. It **will not work** if your account has:
 - IB Key (mobile push notifications) enabled
@@ -26,7 +39,7 @@ To configure TOTP:
 - Node.js 20+
 - Docker (for containerized deployment)
 - IBKR account with Client Portal Gateway access
-- **TOTP as the only 2FA method** (see above)
+- **TOTP as the only 2FA method** (live trading only - see above)
 
 ### Installation
 
@@ -42,9 +55,8 @@ npm install
 | `BRIDGE_PASSWORD` | Basic auth password for API access | Yes |
 | `IBKR_USERNAME` | Interactive Brokers username | Yes |
 | `IBKR_PASSWORD` | Interactive Brokers password | Yes |
-| `IBKR_TOTP_SECRET` | TOTP secret for 2FA (base32 encoded) | **Yes*** |
-
-\* Required for automated login. Without it, the bridge cannot complete 2FA.
+| `IBKR_TOTP_SECRET` | TOTP secret for 2FA (base32 encoded) | Live only |
+| `IBKR_PAPER_TRADING` | Set to `true` for paper trading mode | No |
 | `PORT` | Bridge API port | No (default: 3000) |
 | `HOST` | Bridge API host | No (default: 0.0.0.0) |
 | `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
@@ -66,6 +78,8 @@ npm start
 
 ### Docker
 
+#### Live Trading
+
 ```bash
 docker build -t ibkr-rest-bridge .
 
@@ -79,7 +93,20 @@ docker run -d \
   ibkr-rest-bridge
 ```
 
-Or using an env file:
+#### Paper Trading
+
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -e BRIDGE_USERNAME=admin \
+  -e BRIDGE_PASSWORD=secret \
+  -e IBKR_USERNAME=your_paper_user \
+  -e IBKR_PASSWORD=your_paper_pass \
+  -e IBKR_PAPER_TRADING=true \
+  ibkr-rest-bridge
+```
+
+#### Using an env file
 
 ```bash
 docker run -d -p 3000:3000 --env-file .env ibkr-rest-bridge
@@ -131,7 +158,9 @@ If authentication fails because of a competing session, restart the Docker conta
 
 ### Authentication fails with "no TOTP option found"
 
-Your IBKR account has multiple 2FA methods configured. You must disable all 2FA methods except TOTP. See the 2FA requirements section above.
+For live trading: Your IBKR account has multiple 2FA methods configured. You must disable all 2FA methods except TOTP. See the 2FA requirements section above.
+
+For paper trading: Make sure `IBKR_PAPER_TRADING=true` is set. Paper trading accounts don't use 2FA.
 
 ### Login times out
 

@@ -1,6 +1,8 @@
 export interface Credentials {
   username: string;
   password: string;
+  /** Paper trading mode - uses paper trading toggle, no 2FA required */
+  paperTrading?: boolean;
 }
 
 export interface TOTPSecret {
