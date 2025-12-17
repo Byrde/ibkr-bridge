@@ -47,17 +47,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Image Name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+
       - name: Build & Publish
         uses: docker/build-push-action@v6
-        env:
-          REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.event.repository.name }}
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.semantic-release.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ steps.image.outputs.name }}:${{ needs.semantic-release.outputs.version }}
+            ${{ steps.image.outputs.name }}:latest
           labels: |
             org.opencontainers.image.version=${{ needs.semantic-release.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
