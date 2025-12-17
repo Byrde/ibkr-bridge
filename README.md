@@ -61,6 +61,24 @@ npm install
 | `HOST` | Bridge API host | No (default: 0.0.0.0) |
 | `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
 
+## API Documentation
+
+Interactive OpenAPI/Swagger documentation is available at:
+
+```
+http://localhost:3000/documentation
+```
+
+The documentation is automatically generated from the route schemas and provides:
+- Interactive API testing
+- Request/response schemas
+- Authentication configuration
+- Example requests
+
+The OpenAPI specification is also checked into the repository at `openapi.json` and validated in CI to ensure it stays up-to-date with the code.
+
+See [docs/swagger.md](docs/swagger.md) for more details.
+
 ## Usage
 
 ### Development
@@ -149,6 +167,22 @@ npm test
 # Build
 npm run build
 ```
+
+### OpenAPI Specification
+
+When you modify route schemas, regenerate the OpenAPI specification:
+
+```bash
+npm run generate:openapi
+```
+
+Validate that the checked-in spec is up to date:
+
+```bash
+npm run validate:openapi
+```
+
+The CI pipeline automatically validates this on every PR.
 
 ## Troubleshooting
 

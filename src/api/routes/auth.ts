@@ -9,7 +9,27 @@ export async function authRoutes(
   fastify: FastifyInstance,
   deps: AuthRouteDeps
 ): Promise<void> {
-  fastify.get('/auth/status', async () => {
+  fastify.get('/auth/status', {
+    schema: {
+      tags: ['Authentication'],
+      summary: 'Authentication status',
+      description: 'Get the current authentication session status',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['disconnected', 'authenticating', 'awaiting_totp', 'authenticated', 'expired'] },
+            authenticated: { type: 'boolean' },
+            reauthenticating: { type: 'boolean' },
+            authenticatedAt: { type: ['string', 'null'] },
+            expiresAt: { type: ['string', 'null'] },
+            lastHeartbeat: { type: ['string', 'null'] },
+            timestamp: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async () => {
     const session = deps.sessionManager.getSession();
     const reauthenticating = deps.sessionManager.isReauthenticating();
 

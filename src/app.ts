@@ -1,4 +1,6 @@
 import Fastify from 'fastify';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUI from '@fastify/swagger-ui';
 import type { Config } from './config';
 import { createAuthMiddleware } from './api/auth-middleware';
 import { healthRoutes, accountRoutes, orderRoutes, marketDataRoutes, authRoutes } from './api/routes';
@@ -13,6 +15,47 @@ import { GatewayClient } from './infrastructure/gateway-client';
 
 export async function createApp(config: Config) {
   const fastify = Fastify({ logger: true });
+
+  // Register Swagger
+  await fastify.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'IBKR Trading API',
+        description: 'Interactive Brokers Gateway API for trading operations, account management, and market data',
+        version: '1.0.0',
+      },
+      servers: [
+        {
+          url: 'http://localhost:3000',
+          description: 'Local development server',
+        },
+      ],
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: {
+            type: 'apiKey',
+            name: 'X-API-Key',
+            in: 'header',
+          },
+        },
+      },
+      tags: [
+        { name: 'Health', description: 'Health check endpoints' },
+        { name: 'Authentication', description: 'Authentication and session management' },
+        { name: 'Account', description: 'Account information and positions' },
+        { name: 'Market Data', description: 'Market data and instrument search' },
+        { name: 'Orders', description: 'Order management' },
+      ],
+    },
+  });
+
+  await fastify.register(fastifySwaggerUI, {
+    routePrefix: '/documentation',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+    },
+  });
 
   // Initialize infrastructure
   const gatewayManager = new IbkrGatewayManager({
