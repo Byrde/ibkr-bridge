@@ -31,16 +31,45 @@ Or in YAML format at:
 http://localhost:3000/documentation/yaml
 ```
 
-## Exporting the Specification
+## Checked-in OpenAPI Specification
 
-You can download the OpenAPI specification file for use with other tools:
+The OpenAPI specification is checked into the repository at `/openapi.json`. This allows:
+
+- Version control of API changes
+- Client SDK generation in CI/CD pipelines
+- API contract testing without running the server
+- Documentation review in pull requests
+
+### Generating the Specification
+
+When you modify route schemas, regenerate the OpenAPI spec:
+
+```bash
+npm run generate:openapi
+```
+
+This will update `openapi.json` which you should commit with your changes.
+
+### Validating the Specification
+
+To ensure the checked-in specification is up to date:
+
+```bash
+npm run validate:openapi
+```
+
+This validation runs automatically in CI, so PRs will fail if the OpenAPI spec is out of sync with the code.
+
+## Exporting the Specification at Runtime
+
+You can also download the OpenAPI specification directly from the running server:
 
 ```bash
 # Export as JSON
-curl http://localhost:3000/documentation/json > openapi.json
+curl http://localhost:3000/documentation/json > openapi-runtime.json
 
 # Export as YAML
-curl http://localhost:3000/documentation/yaml > openapi.yaml
+curl http://localhost:3000/documentation/yaml > openapi-runtime.yaml
 ```
 
 ## Using with External Tools

@@ -1,0 +1,1018 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "IBKR Trading API",
+    "description": "Interactive Brokers Gateway API for trading operations, account management, and market data",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "name": "X-API-Key",
+        "in": "header"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": [
+          "Health"
+        ],
+        "description": "Check the health status of the gateway and authentication session",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "healthy",
+                        "degraded"
+                      ]
+                    },
+                    "gateway": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "healthy": {
+                          "type": "boolean"
+                        },
+                        "pid": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "startedAt": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "restartCount": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "authenticated": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account": {
+      "get": {
+        "summary": "Get account details",
+        "tags": [
+          "Account"
+        ],
+        "description": "Retrieve details for the primary account including balances and positions",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "accountType": {
+                      "type": "string"
+                    },
+                    "baseCurrency": {
+                      "type": "string"
+                    },
+                    "balances": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "currency": {
+                            "type": "string"
+                          },
+                          "cash": {
+                            "type": "number"
+                          },
+                          "totalValue": {
+                            "type": "number"
+                          },
+                          "buyingPower": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "positions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "conid": {
+                            "type": "number"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "avgCost": {
+                            "type": "number"
+                          },
+                          "marketValue": {
+                            "type": "number"
+                          },
+                          "unrealizedPnl": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/positions": {
+      "get": {
+        "summary": "Get account positions",
+        "tags": [
+          "Account"
+        ],
+        "description": "Retrieve all positions for the primary account",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "positions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "conid": {
+                            "type": "number"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "avgCost": {
+                            "type": "number"
+                          },
+                          "marketValue": {
+                            "type": "number"
+                          },
+                          "unrealizedPnl": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "get": {
+        "summary": "Get orders",
+        "tags": [
+          "Orders"
+        ],
+        "description": "Retrieve all orders for the primary account",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orderId": {
+                            "type": "string"
+                          },
+                          "accountId": {
+                            "type": "string"
+                          },
+                          "instrument": {
+                            "type": "object",
+                            "properties": {
+                              "conid": {
+                                "type": "number"
+                              },
+                              "symbol": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "stock",
+                                  "option",
+                                  "future",
+                                  "forex",
+                                  "other"
+                                ]
+                              },
+                              "exchange": {
+                                "type": [
+                                  "null",
+                                  "string"
+                                ]
+                              },
+                              "currency": {
+                                "type": [
+                                  "null",
+                                  "string"
+                                ]
+                              }
+                            }
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "buy",
+                              "sell"
+                            ]
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "market",
+                              "limit"
+                            ]
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "limitPrice": {
+                            "type": [
+                              "null",
+                              "number"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "submitted",
+                              "filled",
+                              "partially_filled",
+                              "cancelled",
+                              "rejected"
+                            ]
+                          },
+                          "filledQuantity": {
+                            "type": "number"
+                          },
+                          "avgFillPrice": {
+                            "type": [
+                              "null",
+                              "number"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create order",
+        "tags": [
+          "Orders"
+        ],
+        "description": "Place a new order for the primary account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conid",
+                  "side",
+                  "type",
+                  "quantity"
+                ],
+                "properties": {
+                  "conid": {
+                    "type": "number",
+                    "description": "Contract ID"
+                  },
+                  "side": {
+                    "type": "string",
+                    "enum": [
+                      "buy",
+                      "sell"
+                    ],
+                    "description": "Order side"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "market",
+                      "limit"
+                    ],
+                    "description": "Order type"
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "description": "Order quantity"
+                  },
+                  "limitPrice": {
+                    "type": "number",
+                    "description": "Limit price (required for limit orders)"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orderId": {
+                      "type": "string"
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "instrument": {
+                      "type": "object",
+                      "properties": {
+                        "conid": {
+                          "type": "number"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "stock",
+                            "option",
+                            "future",
+                            "forex",
+                            "other"
+                          ]
+                        },
+                        "exchange": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "currency": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "side": {
+                      "type": "string",
+                      "enum": [
+                        "buy",
+                        "sell"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "market",
+                        "limit"
+                      ]
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "limitPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "submitted",
+                        "filled",
+                        "partially_filled",
+                        "cancelled",
+                        "rejected"
+                      ]
+                    },
+                    "filledQuantity": {
+                      "type": "number"
+                    },
+                    "avgFillPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{orderId}": {
+      "put": {
+        "summary": "Modify order",
+        "tags": [
+          "Orders"
+        ],
+        "description": "Modify an existing order",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "number",
+                    "description": "New order quantity"
+                  },
+                  "limitPrice": {
+                    "type": "number",
+                    "description": "New limit price"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "description": "Order ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orderId": {
+                      "type": "string"
+                    },
+                    "accountId": {
+                      "type": "string"
+                    },
+                    "instrument": {
+                      "type": "object",
+                      "properties": {
+                        "conid": {
+                          "type": "number"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "stock",
+                            "option",
+                            "future",
+                            "forex",
+                            "other"
+                          ]
+                        },
+                        "exchange": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "currency": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "side": {
+                      "type": "string",
+                      "enum": [
+                        "buy",
+                        "sell"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "market",
+                        "limit"
+                      ]
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "limitPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "submitted",
+                        "filled",
+                        "partially_filled",
+                        "cancelled",
+                        "rejected"
+                      ]
+                    },
+                    "filledQuantity": {
+                      "type": "number"
+                    },
+                    "avgFillPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Cancel order",
+        "tags": [
+          "Orders"
+        ],
+        "description": "Cancel an existing order",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "description": "Order ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Order cancelled successfully"
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/instruments": {
+      "get": {
+        "summary": "Search instruments",
+        "tags": [
+          "Market Data"
+        ],
+        "description": "Search for tradable instruments by symbol or name",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "description": "Search query string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "instruments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "conid": {
+                            "type": "number"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "exchange": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{conid}": {
+      "get": {
+        "summary": "Get quote",
+        "tags": [
+          "Market Data"
+        ],
+        "description": "Retrieve market data quote for a specific contract",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conid",
+            "required": true,
+            "description": "Contract ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conid": {
+                      "type": "number"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "lastPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "bidPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "askPrice": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "bidSize": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "askSize": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "volume": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/status": {
+      "get": {
+        "summary": "Authentication status",
+        "tags": [
+          "Authentication"
+        ],
+        "description": "Get the current authentication session status",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "disconnected",
+                        "authenticating",
+                        "awaiting_totp",
+                        "authenticated",
+                        "expired"
+                      ]
+                    },
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "reauthenticating": {
+                      "type": "boolean"
+                    },
+                    "authenticatedAt": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    "expiresAt": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    "lastHeartbeat": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "Authentication and session management"
+    },
+    {
+      "name": "Account",
+      "description": "Account information and positions"
+    },
+    {
+      "name": "Market Data",
+      "description": "Market data and instrument search"
+    },
+    {
+      "name": "Orders",
+      "description": "Order management"
+    }
+  ]
+}

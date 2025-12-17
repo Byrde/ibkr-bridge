@@ -30,6 +30,9 @@ coverage/
 # TypeScript cache
 *.tsbuildinfo
 
+# OpenAPI validation temporary files
+openapi.generated.json
+
 
 
 
