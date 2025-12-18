@@ -2,36 +2,6 @@
 
 A Dockerized service that provides a clean, conventional RESTful API for trading on Interactive Brokers.
 
-## Live Trading vs Paper Trading
-
-The bridge supports both live and paper trading accounts with different authentication requirements.
-
-### Paper Trading
-
-Paper trading accounts do **not** require 2FA. Simply set `IBKR_PAPER_TRADING=true` and provide your paper trading credentials.
-
-To get your paper trading credentials:
-1. Log into IBKR Client Portal with your live account
-2. Go to Settings → Account Settings → Paper Trading Account
-3. Configure/view your paper trading username and password
-
-### Live Trading (2FA Required)
-
-**Your live IBKR account MUST be configured with TOTP (Time-based One-Time Password) as the ONLY two-factor authentication method.**
-
-This bridge automates the login flow using headless browser automation. It **will not work** if your account has:
-- IB Key (mobile push notifications) enabled
-- SMS-based 2FA
-- Multiple 2FA methods configured
-- Security Code Card as primary 2FA
-
-To configure TOTP:
-1. Log into IBKR Account Management
-2. Go to Settings → Security → Secure Login System
-3. Disable all other 2FA methods
-4. Enable "Third Party Authenticator" (TOTP)
-5. Save the TOTP secret (base32 encoded) for the `IBKR_TOTP_SECRET` environment variable
-
 ## Setup
 
 ### Prerequisites
@@ -149,6 +119,36 @@ npm test
 # Build
 npm run build
 ```
+
+## Live Trading vs Paper Trading
+
+The bridge supports both live and paper trading accounts with different authentication requirements.
+
+### Paper Trading
+
+Paper trading accounts do **not** require 2FA. Simply set `IBKR_PAPER_TRADING=true` and provide your paper trading credentials.
+
+To get your paper trading credentials:
+1. Log into IBKR Client Portal with your live account
+2. Go to Settings → Account Settings → Paper Trading Account
+3. Configure/view your paper trading username and password
+
+### Live Trading (2FA Required)
+
+**Your live IBKR account MUST be configured with TOTP (Time-based One-Time Password) as the ONLY two-factor authentication method.**
+
+This bridge automates the login flow using headless browser automation. It **will not work** if your account has:
+- IB Key (mobile push notifications) enabled
+- SMS-based 2FA
+- Multiple 2FA methods configured
+- Security Code Card as primary 2FA
+
+To configure TOTP:
+1. Log into IBKR Account Management
+2. Go to Settings → Security → Secure Login System
+3. Disable all other 2FA methods
+4. Enable "Third Party Authenticator" (TOTP)
+5. Save the TOTP secret (base32 encoded) for the `IBKR_TOTP_SECRET` environment variable
 
 ## Troubleshooting
 
