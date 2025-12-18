@@ -12,7 +12,9 @@
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "typecheck": "tsc --noEmit",
-    "cli": "tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "openapi:check": "tsx scripts/generate-openapi.ts && git diff --exit-code openapi.json"
   },
   "keywords": [
     "ibkr",
@@ -26,6 +28,8 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@fastify/swagger": "^9.6.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "fastify": "^5.1.0",
     "otplib": "^12.0.1",
     "playwright": "^1.57.0"

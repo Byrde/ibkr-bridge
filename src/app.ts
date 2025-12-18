@@ -1,4 +1,6 @@
 import Fastify from 'fastify';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { Config } from './config';
 import { createAuthMiddleware } from './api/auth-middleware';
 import { healthRoutes, accountRoutes, orderRoutes, marketDataRoutes, authRoutes } from './api/routes';
@@ -12,7 +14,57 @@ import { IbkrMarketDataRepository } from './infrastructure/ibkr-market-data-repo
 import { GatewayClient } from './infrastructure/gateway-client';
 
 export async function createApp(config: Config) {
-  const fastify = Fastify({ logger: true });
+  const fastify = Fastify({
+    logger: true,
+    ajv: {
+      customOptions: {
+        // Allow OpenAPI keywords like 'example' in schemas
+        keywords: ['example'],
+      },
+    },
+  });
+
+  // Register Swagger for OpenAPI documentation
+  await fastify.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'IBKR REST Bridge API',
+        description: 'RESTful API bridge for Interactive Brokers Client Portal Gateway',
+        version: '0.1.0',
+      },
+      servers: [
+        {
+          url: 'http://localhost:3000',
+          description: 'Local development server',
+        },
+      ],
+      components: {
+        securitySchemes: {
+          basicAuth: {
+            type: 'http',
+            scheme: 'basic',
+            description: 'Basic authentication for API access',
+          },
+        },
+      },
+      tags: [
+        { name: 'Health', description: 'Health check endpoints' },
+        { name: 'Auth', description: 'Authentication status endpoints' },
+        { name: 'Account', description: 'Account information endpoints' },
+        { name: 'Orders', description: 'Order management endpoints' },
+        { name: 'Market Data', description: 'Market data endpoints' },
+      ],
+    },
+  });
+
+  // Register Swagger UI
+  await fastify.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
+  });
 
   // Initialize infrastructure
   const gatewayManager = new IbkrGatewayManager({
