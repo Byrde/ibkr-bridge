@@ -4,17 +4,30 @@ A Dockerized service that provides a clean, conventional RESTful API for trading
 
 ## Setup
 
-### Prerequisites
-
 - Node.js 20+
 - Docker (for containerized deployment)
 - IBKR account with Client Portal Gateway access
-- **TOTP as the only 2FA method** (live trading only - see above)
+- **TOTP as the only 2FA method** (live trading only - see below)
+
+## Usage
 
 ### Installation
 
 ```bash
 npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+### Production
+
+```bash
+npm run build
+npm start
 ```
 
 ### Environment Variables
@@ -31,20 +44,6 @@ npm install
 | `HOST` | Bridge API host | No (default: 0.0.0.0) |
 | `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
 
-## Usage
-
-### Development
-
-```bash
-npm run dev
-```
-
-### Production
-
-```bash
-npm run build
-npm start
-```
 
 ### Docker
 
