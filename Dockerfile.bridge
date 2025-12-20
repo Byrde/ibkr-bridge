@@ -6,8 +6,16 @@ FROM ${GATEWAY_IMAGE}
 # The bridge uses the same dist folder from the gateway build
 # but runs the full bridge server instead
 
-# Additional environment variables for the bridge
-ENV HEARTBEAT_INTERVAL_MS=60000
+# Required environment variables (must be provided at runtime):
+#   BRIDGE_USERNAME    - Basic auth username for API access
+#   BRIDGE_PASSWORD    - Basic auth password for API access
+#   IBKR_USERNAME      - Interactive Brokers username
+#   IBKR_PASSWORD      - Interactive Brokers password
+
+# Optional environment variables
+ENV IBKR_TOTP_SECRET=""
+ENV IBKR_PAPER_TRADING="false"
+ENV HEARTBEAT_INTERVAL_MS="60000"
 
 # Health check remains the same (both use /api/v1/health)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \

@@ -63,12 +63,12 @@ RUN npx playwright install chromium
 
 COPY --from=builder /app/dist ./dist
 
-# Default environment variables
-ENV PORT=3000
-ENV HOST=0.0.0.0
-ENV GATEWAY_PORT=5000
-ENV GATEWAY_PATH=/opt/ibkr
-ENV GATEWAY_CONFIG_PATH=/opt/ibkr/root/conf.yaml
+# Required environment variables (must be provided at runtime):
+#   PORT               - API server port (e.g., 3000)
+#   HOST               - API server host (e.g., 0.0.0.0)
+#   GATEWAY_PORT       - IBKR Gateway port (e.g., 5000)
+#   GATEWAY_PATH       - Path to IBKR Gateway (e.g., /opt/ibkr)
+#   GATEWAY_CONFIG_PATH - Path to gateway config (e.g., /opt/ibkr/root/conf.yaml)
 
 # Expose API port only (IBKR Gateway on 5000 is internal)
 EXPOSE 3000

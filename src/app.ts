@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { Config } from './config';
@@ -22,6 +23,11 @@ export async function createApp(config: Config) {
         keywords: ['example'],
       },
     },
+  });
+
+  // Enable CORS for Swagger UI and browser clients
+  await fastify.register(fastifyCors, {
+    origin: true, // Allow all origins (configure for production)
   });
 
   // Register Swagger for OpenAPI documentation

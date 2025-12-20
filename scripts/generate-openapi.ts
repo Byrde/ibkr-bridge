@@ -121,10 +121,10 @@ async function generateSpec() {
   const spec = fastify.swagger();
 
   // Write to file
-  const outputPath = path.join(__dirname, '..', 'openapi.json');
+  const outputPath = path.join(__dirname, '..', 'openapi.bridge.json');
   fs.writeFileSync(outputPath, JSON.stringify(spec, null, 2) + '\n');
 
-  console.log(`OpenAPI specification written to ${outputPath}`);
+  console.log(`Bridge OpenAPI specification written to ${outputPath}`);
 
   await fastify.close();
 }
