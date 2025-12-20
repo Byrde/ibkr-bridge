@@ -1,6 +1,9 @@
-# IBKR REST Bridge
+# IBKR Gateway & REST Bridge
 
-A Dockerized service that provides a clean, conventional RESTful API for trading on Interactive Brokers.
+Dockerized services for Interactive Brokers integration. Provides two images:
+
+- **ibkr-gateway** — Runs the IBKR Client Portal Gateway with a simple login/proxy API
+- **ibkr-bridge** — Extends the gateway with session management and a full REST API for trading
 
 ## Setup
 
