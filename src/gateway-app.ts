@@ -7,49 +7,62 @@ import https from 'https';
 import type { GatewayManager } from './domain/gateway';
 import { HeadlessLoginService, type LoginCredentials } from './infrastructure/headless-login-service';
 
-interface AccountsResponse {
-  accounts?: string[];
+interface SsoValidateResponse {
+  USER_NAME?: string;
+  RESULT?: boolean;
 }
 
 /**
- * Check if user is already authenticated and get current session's paper trading status.
- * Returns null if not authenticated, or { isPaper: boolean } if authenticated.
+ * Check if user is already authenticated.
+ * Returns null if not authenticated, or { username } if authenticated.
  */
-async function checkCurrentSession(baseUrl: string): Promise<{ isPaper: boolean } | null> {
+async function checkCurrentSession(baseUrl: string): Promise<{ username: string } | null> {
   return new Promise((resolve) => {
-    const url = new URL('/v1/api/iserver/accounts', baseUrl);
-    const req = https.get(
-      url,
-      { rejectUnauthorized: false },
-      (res) => {
-        if (res.statusCode !== 200) {
-          resolve(null);
-          return;
-        }
+    const url = new URL('/v1/api/sso/validate', baseUrl);
 
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data) as AccountsResponse;
-            if (response.accounts && response.accounts.length > 0) {
-              // Paper accounts start with 'D', live accounts start with 'U'
-              const isPaper = response.accounts.some((acc) => acc.startsWith('D'));
-              resolve({ isPaper });
-            } else {
-              resolve(null);
-            }
-          } catch {
+    const options: https.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method: 'GET',
+      rejectUnauthorized: false,
+      headers: {
+        'User-Agent': 'IBKR-REST-Bridge/1.0',
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 5000,
+    };
+
+    const req = https.request(options, (res) => {
+      if (res.statusCode !== 200) {
+        resolve(null);
+        return;
+      }
+
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data) as SsoValidateResponse;
+          if (response.RESULT && response.USER_NAME) {
+            resolve({ username: response.USER_NAME });
+          } else {
             resolve(null);
           }
-        });
-      }
-    );
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+
     req.on('error', () => resolve(null));
-    req.setTimeout(5000, () => {
+    req.on('timeout', () => {
       req.destroy();
       resolve(null);
     });
+
+    req.end();
   });
 }
 
@@ -245,15 +258,19 @@ IBKR credentials are passed via Basic Auth. Use the **Authorize** button to set 
       };
     }
 
-    // Check if already authenticated with matching paper trading mode
+    // Check if same user is already authenticated
     const currentSession = await checkCurrentSession(gatewayManager.getBaseUrl());
-    if (currentSession !== null && currentSession.isPaper === paperTrading) {
-      return { success: true, message: 'Authentication successful' };
+    if (currentSession !== null) {
+      const sameUser = currentSession.username.toLowerCase() === username.toLowerCase();
+      if (sameUser) {
+        return { success: true, message: 'Authentication successful' };
+      }
+      // Different user - proceed with login
     }
 
     const loginService = new HeadlessLoginService(gatewayManager.getBaseUrl(), {
       headless: true,
-      timeout: 60000,
+      timeout: 30000,
     });
 
     const credentials: LoginCredentials = {
