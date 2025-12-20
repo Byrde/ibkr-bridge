@@ -7,6 +7,7 @@ import type {
   OrderSide,
   OrderStatus,
   OrderType,
+  TimeInForce,
 } from '../domain/order';
 import type { GatewayClient } from './gateway-client';
 import { createLogger } from './logger';
@@ -36,6 +37,10 @@ interface IbkrOrderResponse {
   price?: number | string;
   status?: string;
   order_status?: string;
+  tif?: string;
+  timeInForce?: string;
+  parentId?: string;
+  parent_id?: string;
   lastExecutionTime_r?: number;
   lastExecutionTime?: string;
 }
@@ -67,15 +72,34 @@ export class IbkrOrderRepository implements OrderRepository {
   constructor(private readonly client: GatewayClient) {}
 
   async placeOrder(accountId: string, request: CreateOrderRequest): Promise<Order> {
-    const ibkrOrder = {
+    const ibkrOrder: Record<string, unknown> = {
       acctId: accountId,
       conid: request.conid,
-      orderType: request.type === 'market' ? 'MKT' : 'LMT',
+      orderType: this.toIbkrOrderType(request.type),
       side: request.side.toUpperCase(),
       quantity: request.quantity,
-      price: request.limitPrice,
-      tif: 'DAY',
+      tif: request.timeInForce ?? 'DAY',
     };
+
+    // Add price for limit orders
+    if (request.limitPrice !== undefined) {
+      ibkrOrder.price = request.limitPrice;
+    }
+
+    // Add price for stop orders (IBKR uses 'price' for stop price too)
+    if (request.type === 'stop' && request.stopPrice !== undefined) {
+      ibkrOrder.price = request.stopPrice;
+    }
+
+    // Add client order ID if provided
+    if (request.clientOrderId) {
+      ibkrOrder.cOID = request.clientOrderId;
+    }
+
+    // Add parent ID for attached orders (e.g., stop-loss attached to a buy)
+    if (request.parentId) {
+      ibkrOrder.parentId = request.parentId;
+    }
 
     log.debug(`Placing order: ${JSON.stringify(ibkrOrder)}`);
 
@@ -98,11 +122,23 @@ export class IbkrOrderRepository implements OrderRepository {
       type: request.type,
       quantity: request.quantity,
       limitPrice: request.limitPrice,
+      stopPrice: request.stopPrice,
+      timeInForce: request.timeInForce ?? 'DAY',
+      clientOrderId: request.clientOrderId,
+      parentId: request.parentId,
       status: result.status,
       filledQuantity: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+  }
+
+  private toIbkrOrderType(type: OrderType): string {
+    switch (type) {
+      case 'market': return 'MKT';
+      case 'limit': return 'LMT';
+      case 'stop': return 'STP';
+    }
   }
 
   /**
@@ -171,16 +207,26 @@ export class IbkrOrderRepository implements OrderRepository {
       throw new Error(`Order ${orderId} not found`);
     }
 
+    // Determine the price based on order type
+    let price: number | undefined;
+    if (existingOrder.type === 'stop') {
+      price = request.stopPrice ?? existingOrder.stopPrice;
+    } else if (existingOrder.type === 'limit') {
+      price = request.limitPrice ?? existingOrder.limitPrice;
+    }
+
     // IBKR requires the full order to be resent with modifications
-    // Build the complete order with updated fields
-    const modifyRequest = {
+    const modifyRequest: Record<string, unknown> = {
       conid: existingOrder.instrument.conid,
       side: existingOrder.side.toUpperCase(),
-      orderType: existingOrder.type === 'market' ? 'MKT' : 'LMT',
-      price: request.limitPrice ?? existingOrder.limitPrice,
+      orderType: this.toIbkrOrderType(existingOrder.type),
       quantity: request.quantity ?? existingOrder.quantity,
-      tif: 'DAY',
+      tif: existingOrder.timeInForce,
     };
+
+    if (price !== undefined) {
+      modifyRequest.price = price;
+    }
 
     log.debug(`Sending modify request: ${JSON.stringify(modifyRequest)}`);
 
@@ -242,10 +288,22 @@ export class IbkrOrderRepository implements OrderRepository {
     const remainingQty = raw.remainingQuantity ?? raw.remaining_quantity ?? totalQty;
     const avgPrice = raw.avgPrice ?? raw.avg_price;
     // price can be string ("100.00") or number
-    const limitPrice = raw.price !== undefined ? parseFloat(String(raw.price)) : undefined;
+    const priceValue = raw.price !== undefined ? parseFloat(String(raw.price)) : undefined;
     const statusRaw = raw.status ?? raw.order_status ?? '';
     const sideRaw = raw.side ?? '';
     const typeRaw = raw.orderType ?? raw.order_type ?? '';
+    const orderType = this.mapOrderType(typeRaw);
+
+    // For stop orders, price is the stop price; for limit orders, it's the limit price
+    const limitPrice = orderType === 'limit' ? priceValue : undefined;
+    const stopPrice = orderType === 'stop' ? priceValue : undefined;
+
+    // Parse time in force
+    const tifRaw = raw.tif ?? raw.timeInForce ?? 'DAY';
+    const timeInForce: TimeInForce = tifRaw.toUpperCase() === 'GTC' ? 'GTC' : 'DAY';
+
+    // Parse parent ID for attached orders
+    const parentId = raw.parentId ?? raw.parent_id;
 
     // Parse timestamps
     let updatedAt = new Date();
@@ -266,9 +324,12 @@ export class IbkrOrderRepository implements OrderRepository {
       accountId: raw.acct ?? raw.account ?? accountId,
       instrument,
       side: this.mapSide(sideRaw),
-      type: this.mapOrderType(typeRaw),
+      type: orderType,
       quantity: totalQty > 0 ? totalQty : filledQty + remainingQty,
       limitPrice,
+      stopPrice,
+      timeInForce,
+      parentId,
       status: this.mapStatus(statusRaw, filledQty, remainingQty),
       filledQuantity: filledQty,
       avgFillPrice: avgPrice,
@@ -284,7 +345,9 @@ export class IbkrOrderRepository implements OrderRepository {
 
   private mapOrderType(type: string): OrderType {
     const t = type.toUpperCase();
-    return t === 'MKT' || t === 'MARKET' ? 'market' : 'limit';
+    if (t === 'MKT' || t === 'MARKET') return 'market';
+    if (t === 'STP' || t === 'STOP') return 'stop';
+    return 'limit';
   }
 
   private mapStatus(status: string, filledQty: number, remainingQty: number): OrderStatus {

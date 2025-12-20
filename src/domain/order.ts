@@ -1,6 +1,7 @@
 export type OrderSide = 'buy' | 'sell';
-export type OrderType = 'market' | 'limit';
+export type OrderType = 'market' | 'limit' | 'stop';
 export type OrderStatus = 'pending' | 'submitted' | 'filled' | 'partially_filled' | 'cancelled' | 'rejected';
+export type TimeInForce = 'DAY' | 'GTC';
 
 export interface Instrument {
   conid: number;
@@ -18,6 +19,10 @@ export interface Order {
   type: OrderType;
   quantity: number;
   limitPrice?: number;
+  stopPrice?: number;
+  timeInForce: TimeInForce;
+  parentId?: string;
+  clientOrderId?: string;
   status: OrderStatus;
   filledQuantity: number;
   avgFillPrice?: number;
@@ -31,11 +36,16 @@ export interface CreateOrderRequest {
   type: OrderType;
   quantity: number;
   limitPrice?: number;
+  stopPrice?: number;
+  timeInForce?: TimeInForce;
+  clientOrderId?: string;
+  parentId?: string;
 }
 
 export interface ModifyOrderRequest {
   quantity?: number;
   limitPrice?: number;
+  stopPrice?: number;
 }
 
 export interface OrderRepository {
@@ -45,6 +55,8 @@ export interface OrderRepository {
   getOrders(accountId: string): Promise<Order[]>;
   getOrder(accountId: string, orderId: string): Promise<Order | null>;
 }
+
+
 
 
 

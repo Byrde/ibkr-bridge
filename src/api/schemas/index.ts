@@ -75,9 +75,13 @@ export const OrderSchema = {
     accountId: { type: 'string', example: 'U1234567' },
     instrument: InstrumentSchema,
     side: { type: 'string', enum: ['buy', 'sell'], example: 'buy' },
-    type: { type: 'string', enum: ['market', 'limit'], example: 'limit' },
+    type: { type: 'string', enum: ['market', 'limit', 'stop'], example: 'limit' },
     quantity: { type: 'number', example: 100 },
     limitPrice: { type: 'number', example: 150.0 },
+    stopPrice: { type: 'number', example: 145.0 },
+    timeInForce: { type: 'string', enum: ['DAY', 'GTC'], example: 'DAY' },
+    parentId: { type: 'string', description: 'Parent order ID for attached orders' },
+    clientOrderId: { type: 'string', description: 'Client-assigned order ID' },
     status: {
       type: 'string',
       enum: ['pending', 'submitted', 'filled', 'partially_filled', 'cancelled', 'rejected'],
@@ -95,6 +99,7 @@ export const OrderSchema = {
     'side',
     'type',
     'quantity',
+    'timeInForce',
     'status',
     'filledQuantity',
     'createdAt',
@@ -107,9 +112,13 @@ export const CreateOrderRequestSchema = {
   properties: {
     conid: { type: 'integer', description: 'Contract ID of the instrument', example: 265598 },
     side: { type: 'string', enum: ['buy', 'sell'], example: 'buy' },
-    type: { type: 'string', enum: ['market', 'limit'], example: 'limit' },
+    type: { type: 'string', enum: ['market', 'limit', 'stop'], example: 'market' },
     quantity: { type: 'number', minimum: 1, example: 100 },
     limitPrice: { type: 'number', description: 'Required for limit orders', example: 150.0 },
+    stopPrice: { type: 'number', description: 'Required for stop orders', example: 145.0 },
+    timeInForce: { type: 'string', enum: ['DAY', 'GTC'], default: 'DAY', example: 'DAY' },
+    clientOrderId: { type: 'string', description: 'Client-assigned order ID for referencing in parentId' },
+    parentId: { type: 'string', description: 'Parent order ID (for attached stop-loss orders)' },
   },
   required: ['conid', 'side', 'type', 'quantity'],
 } as const;
@@ -119,6 +128,7 @@ export const ModifyOrderRequestSchema = {
   properties: {
     quantity: { type: 'number', minimum: 1, example: 50 },
     limitPrice: { type: 'number', example: 155.0 },
+    stopPrice: { type: 'number', example: 145.0 },
   },
 } as const;
 
