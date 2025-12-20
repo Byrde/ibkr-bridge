@@ -411,7 +411,8 @@
                             "type": "string",
                             "enum": [
                               "market",
-                              "limit"
+                              "limit",
+                              "stop"
                             ],
                             "example": "limit"
                           },
@@ -422,6 +423,26 @@
                           "limitPrice": {
                             "type": "number",
                             "example": 150
+                          },
+                          "stopPrice": {
+                            "type": "number",
+                            "example": 145
+                          },
+                          "timeInForce": {
+                            "type": "string",
+                            "enum": [
+                              "DAY",
+                              "GTC"
+                            ],
+                            "example": "DAY"
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "description": "Parent order ID for attached orders"
+                          },
+                          "clientOrderId": {
+                            "type": "string",
+                            "description": "Client-assigned order ID"
                           },
                           "status": {
                             "type": "string",
@@ -459,6 +480,7 @@
                           "side",
                           "type",
                           "quantity",
+                          "timeInForce",
                           "status",
                           "filledQuantity",
                           "createdAt",
@@ -522,9 +544,10 @@
                     "type": "string",
                     "enum": [
                       "market",
-                      "limit"
+                      "limit",
+                      "stop"
                     ],
-                    "example": "limit"
+                    "example": "market"
                   },
                   "quantity": {
                     "type": "number",
@@ -535,6 +558,28 @@
                     "type": "number",
                     "description": "Required for limit orders",
                     "example": 150
+                  },
+                  "stopPrice": {
+                    "type": "number",
+                    "description": "Required for stop orders",
+                    "example": 145
+                  },
+                  "timeInForce": {
+                    "type": "string",
+                    "enum": [
+                      "DAY",
+                      "GTC"
+                    ],
+                    "default": "DAY",
+                    "example": "DAY"
+                  },
+                  "clientOrderId": {
+                    "type": "string",
+                    "description": "Client-assigned order ID for referencing in parentId"
+                  },
+                  "parentId": {
+                    "type": "string",
+                    "description": "Parent order ID (for attached stop-loss orders)"
                   }
                 },
                 "required": [
@@ -618,7 +663,8 @@
                       "type": "string",
                       "enum": [
                         "market",
-                        "limit"
+                        "limit",
+                        "stop"
                       ],
                       "example": "limit"
                     },
@@ -629,6 +675,26 @@
                     "limitPrice": {
                       "type": "number",
                       "example": 150
+                    },
+                    "stopPrice": {
+                      "type": "number",
+                      "example": 145
+                    },
+                    "timeInForce": {
+                      "type": "string",
+                      "enum": [
+                        "DAY",
+                        "GTC"
+                      ],
+                      "example": "DAY"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "description": "Parent order ID for attached orders"
+                    },
+                    "clientOrderId": {
+                      "type": "string",
+                      "description": "Client-assigned order ID"
                     },
                     "status": {
                       "type": "string",
@@ -666,6 +732,7 @@
                     "side",
                     "type",
                     "quantity",
+                    "timeInForce",
                     "status",
                     "filledQuantity",
                     "createdAt",
@@ -716,6 +783,10 @@
                   "limitPrice": {
                     "type": "number",
                     "example": 155
+                  },
+                  "stopPrice": {
+                    "type": "number",
+                    "example": 145
                   }
                 }
               }
@@ -803,7 +874,8 @@
                       "type": "string",
                       "enum": [
                         "market",
-                        "limit"
+                        "limit",
+                        "stop"
                       ],
                       "example": "limit"
                     },
@@ -814,6 +886,26 @@
                     "limitPrice": {
                       "type": "number",
                       "example": 150
+                    },
+                    "stopPrice": {
+                      "type": "number",
+                      "example": 145
+                    },
+                    "timeInForce": {
+                      "type": "string",
+                      "enum": [
+                        "DAY",
+                        "GTC"
+                      ],
+                      "example": "DAY"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "description": "Parent order ID for attached orders"
+                    },
+                    "clientOrderId": {
+                      "type": "string",
+                      "description": "Client-assigned order ID"
                     },
                     "status": {
                       "type": "string",
@@ -851,6 +943,7 @@
                     "side",
                     "type",
                     "quantity",
+                    "timeInForce",
                     "status",
                     "filledQuantity",
                     "createdAt",

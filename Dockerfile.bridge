@@ -1,0 +1,17 @@
+# Full IBKR REST Bridge - extends the gateway image
+# Adds: session management, heartbeat, auto re-auth, and the full REST API
+ARG GATEWAY_IMAGE=ibkr-gateway:latest
+FROM ${GATEWAY_IMAGE}
+
+# The bridge uses the same dist folder from the gateway build
+# but runs the full bridge server instead
+
+# Additional environment variables for the bridge
+ENV HEARTBEAT_INTERVAL_MS=60000
+
+# Health check remains the same (both use /api/v1/health)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/v1/health || exit 1
+
+# Run the full bridge server
+CMD ["node", "dist/index.js"]

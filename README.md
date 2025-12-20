@@ -32,6 +32,16 @@ npm start
 
 ### Environment Variables
 
+#### Gateway Image (`ibkr-gateway`)
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PORT` | API port | No (default: 3000) |
+| `HOST` | API host | No (default: 0.0.0.0) |
+| `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
+
+#### Bridge Image (`ibkr-bridge`)
+
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `BRIDGE_USERNAME` | Basic auth username for API access | Yes |
@@ -43,15 +53,58 @@ npm start
 | `PORT` | Bridge API port | No (default: 3000) |
 | `HOST` | Bridge API host | No (default: 0.0.0.0) |
 | `GATEWAY_PORT` | IBKR Gateway port | No (default: 5000) |
+| `HEARTBEAT_INTERVAL_MS` | Session heartbeat interval | No (default: 60000) |
 
 
 ### Docker
 
-#### Live Trading
+This project provides two Docker images for different use cases:
+
+#### Image 1: Gateway Only (`ibkr-gateway`)
+
+A minimal image that runs the IBKR Client Portal Gateway with a simple API for authentication and request proxying. Use this when you want to manage sessions yourself or integrate with a custom application.
+
+**Provides:**
+- `POST /api/v1/auth/login` - Authenticate with IBKR (accepts credentials in request body)
+- `GET /api/v1/health` - Gateway health check
+- `* /v1/api/*` - Proxies all requests to the IBKR Gateway
 
 ```bash
-docker build -t ibkr-rest-bridge .
+# Build gateway image
+docker build -f Dockerfile.gateway -t ibkr-gateway .
 
+# Run gateway (no pre-configured credentials - authenticate via API)
+docker run -d -p 3000:3000 ibkr-gateway
+
+# Authenticate via API
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "your_user", "password": "your_pass", "totpSecret": "your_secret"}'
+
+# Proxy requests directly to IBKR Gateway
+curl http://localhost:3000/v1/api/portfolio/accounts
+```
+
+#### Image 2: Full Bridge (`ibkr-bridge`)
+
+Extends the gateway image with session management, automatic re-authentication, and a full REST API. Use this for a complete turnkey solution.
+
+**Additional features:**
+- Automatic session heartbeat and re-authentication
+- Basic Auth protection for the API
+- REST endpoints for accounts, orders, and market data
+
+```bash
+# Build both images (gateway first, then bridge)
+npm run docker:build:bridge
+
+# Or build using the default Dockerfile (standalone full bridge)
+docker build -t ibkr-bridge .
+```
+
+##### Live Trading
+
+```bash
 docker run -d \
   -p 3000:3000 \
   -e BRIDGE_USERNAME=admin \
@@ -59,10 +112,10 @@ docker run -d \
   -e IBKR_USERNAME=your_ibkr_user \
   -e IBKR_PASSWORD=your_ibkr_pass \
   -e IBKR_TOTP_SECRET=your_totp_secret \
-  ibkr-rest-bridge
+  ibkr-bridge
 ```
 
-#### Paper Trading
+##### Paper Trading
 
 ```bash
 docker run -d \
@@ -72,13 +125,13 @@ docker run -d \
   -e IBKR_USERNAME=your_paper_user \
   -e IBKR_PASSWORD=your_paper_pass \
   -e IBKR_PAPER_TRADING=true \
-  ibkr-rest-bridge
+  ibkr-bridge
 ```
 
-#### Using an env file
+##### Using an env file
 
 ```bash
-docker run -d -p 3000:3000 --env-file .env ibkr-rest-bridge
+docker run -d -p 3000:3000 --env-file .env ibkr-bridge
 ```
 
 > **Note:** When using `--env-file`, do **not** quote the values in your `.env` file:

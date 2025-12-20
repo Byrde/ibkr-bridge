@@ -43,11 +43,31 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Publish Docker Image
+      # Build and publish gateway image first (base image)
+      - name: Build & Publish Gateway Image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.gateway
           push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:${{ needs.semantic-release.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:latest
+          labels: |
+            org.opencontainers.image.version=${{ needs.semantic-release.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build and publish bridge image (extends gateway)
+      - name: Build & Publish Bridge Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.bridge
+          push: true
+          build-args: |
+            GATEWAY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:${{ needs.semantic-release.outputs.version }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge:${{ needs.semantic-release.outputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge:latest
@@ -57,7 +77,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Docker Hub Description
+      - name: Update Docker Hub Description (Gateway)
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway
+          readme-filepath: ./README.md
+
+      - name: Update Docker Hub Description (Bridge)
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
