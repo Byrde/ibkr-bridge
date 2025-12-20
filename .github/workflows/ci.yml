@@ -77,28 +77,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Get Docker Hub JWT Token
+        id: dockerhub-token
+        run: |
+          TOKEN=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"username": "${{ secrets.DOCKERHUB_USERNAME }}", "password": "${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            "https://hub.docker.com/v2/users/login" | jq -r '.token')
+          echo "::add-mask::$TOKEN"
+          echo "jwt=$TOKEN" >> $GITHUB_OUTPUT
+
       - name: Update Docker Hub Description (Gateway)
         run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.DOCKERHUB_TOKEN }}" \
+          curl -sf -X PATCH \
+            -H "Authorization: JWT ${{ steps.dockerhub-token.outputs.jwt }}" \
             -H "Content-Type: application/json" \
             -d '{"description": "IBKR Client Portal Gateway with headless authentication", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway/")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          echo "Response: $BODY"
-          echo "HTTP Code: $HTTP_CODE"
-          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway/"
 
       - name: Update Docker Hub Description (Bridge)
         run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.DOCKERHUB_TOKEN }}" \
+          curl -sf -X PATCH \
+            -H "Authorization: JWT ${{ steps.dockerhub-token.outputs.jwt }}" \
             -H "Content-Type: application/json" \
             -d '{"description": "IBKR Bridge - Gateway with REST API layer", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge/")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          echo "Response: $BODY"
-          echo "HTTP Code: $HTTP_CODE"
-          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge/"
