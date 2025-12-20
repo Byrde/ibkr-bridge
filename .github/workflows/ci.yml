@@ -79,16 +79,26 @@ jobs:
 
       - name: Update Docker Hub Description (Gateway)
         run: |
-          curl -X PATCH \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
             -H "Authorization: Bearer ${{ secrets.DOCKERHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"full_description": '"$(jq -Rs . < ./README.md)"'}' \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway/"
+            -d '{"description": "IBKR Client Portal Gateway with headless authentication", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway/")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Response: $BODY"
+          echo "HTTP Code: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi
 
       - name: Update Docker Hub Description (Bridge)
         run: |
-          curl -X PATCH \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
             -H "Authorization: Bearer ${{ secrets.DOCKERHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"full_description": '"$(jq -Rs . < ./README.md)"'}' \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge/"
+            -d '{"description": "IBKR Bridge - Gateway with REST API layer", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge/")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Response: $BODY"
+          echo "HTTP Code: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi
