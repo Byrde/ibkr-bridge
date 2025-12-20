@@ -82,6 +82,7 @@ jobs:
         run: |
           TOKEN=$(curl -s -X POST \
             -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions" \
             -d '{"username": "${{ secrets.DOCKERHUB_USERNAME }}", "password": "${{ secrets.DOCKERHUB_TOKEN }}"}' \
             "https://hub.docker.com/v2/users/login" | jq -r '.token')
           echo "::add-mask::$TOKEN"
@@ -92,6 +93,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X PATCH \
             -H "Authorization: JWT ${{ steps.dockerhub-token.outputs.jwt }}" \
             -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions" \
             -d '{"description": "IBKR Client Portal Gateway with headless authentication", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
             "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway/")
           echo "HTTP Code: $HTTP_CODE"
@@ -103,6 +105,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X PATCH \
             -H "Authorization: JWT ${{ steps.dockerhub-token.outputs.jwt }}" \
             -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions" \
             -d '{"description": "IBKR Bridge - Gateway with REST API layer", "full_description": '"$(jq -Rs . < ./README.md)"'}' \
             "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge/")
           echo "HTTP Code: $HTTP_CODE"
