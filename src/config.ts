@@ -65,7 +65,7 @@ export function loadConfig(): Config {
     },
 
     gateway: {
-      path: process.env.GATEWAY_PATH ?? '/opt/ibkr/clientportal.gw',
+      path: process.env.GATEWAY_PATH ?? '/opt/ibkr',
       configPath: process.env.GATEWAY_CONFIG_PATH ?? '/opt/ibkr/root/conf.yaml',
       port: parseInt(process.env.GATEWAY_PORT ?? '5000', 10),
     },

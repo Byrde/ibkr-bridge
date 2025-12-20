@@ -67,7 +67,7 @@ COPY --from=builder /app/dist ./dist
 #   PORT               - API server port (e.g., 3000)
 #   HOST               - API server host (e.g., 0.0.0.0)
 #   GATEWAY_PORT       - IBKR Gateway port (e.g., 5000)
-#   GATEWAY_PATH       - Path to IBKR Gateway (e.g., /opt/ibkr)
+#   GATEWAY_PATH       - Path to IBKR Gateway (default: /opt/ibkr)
 #   GATEWAY_CONFIG_PATH - Path to gateway config (e.g., /opt/ibkr/root/conf.yaml)
 
 # Expose API port only (IBKR Gateway on 5000 is internal)
