@@ -3,8 +3,55 @@ import fastifyCors from '@fastify/cors';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyHttpProxy from '@fastify/http-proxy';
+import https from 'https';
 import type { GatewayManager } from './domain/gateway';
 import { HeadlessLoginService, type LoginCredentials } from './infrastructure/headless-login-service';
+
+interface AccountsResponse {
+  accounts?: string[];
+}
+
+/**
+ * Check if user is already authenticated and get current session's paper trading status.
+ * Returns null if not authenticated, or { isPaper: boolean } if authenticated.
+ */
+async function checkCurrentSession(baseUrl: string): Promise<{ isPaper: boolean } | null> {
+  return new Promise((resolve) => {
+    const url = new URL('/v1/api/iserver/accounts', baseUrl);
+    const req = https.get(
+      url,
+      { rejectUnauthorized: false },
+      (res) => {
+        if (res.statusCode !== 200) {
+          resolve(null);
+          return;
+        }
+
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try {
+            const response = JSON.parse(data) as AccountsResponse;
+            if (response.accounts && response.accounts.length > 0) {
+              // Paper accounts start with 'D', live accounts start with 'U'
+              const isPaper = response.accounts.some((acc) => acc.startsWith('D'));
+              resolve({ isPaper });
+            } else {
+              resolve(null);
+            }
+          } catch {
+            resolve(null);
+          }
+        });
+      }
+    );
+    req.on('error', () => resolve(null));
+    req.setTimeout(5000, () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
 
 export interface GatewayAppConfig {
   gatewayManager: GatewayManager;
@@ -196,6 +243,12 @@ IBKR credentials are passed via Basic Auth. Use the **Authorize** button to set 
         success: false,
         error: 'Username and password are required',
       };
+    }
+
+    // Check if already authenticated with matching paper trading mode
+    const currentSession = await checkCurrentSession(gatewayManager.getBaseUrl());
+    if (currentSession !== null && currentSession.isPaper === paperTrading) {
+      return { success: true, message: 'Authentication successful' };
     }
 
     const loginService = new HeadlessLoginService(gatewayManager.getBaseUrl(), {
