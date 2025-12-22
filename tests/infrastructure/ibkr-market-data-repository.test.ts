@@ -17,241 +17,33 @@ describe('IbkrMarketDataRepository', () => {
     repository = new IbkrMarketDataRepository(mockClient);
   });
 
-  describe('searchInstruments', () => {
-    it('returns empty array when response is empty', async () => {
-      mockClient.get.mockResolvedValue([]);
+  describe('getQuoteBySymbol', () => {
+    it('resolves symbol and returns quote', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([
+          {
+            conid: 265598,
+            symbol: 'AAPL',
+            companyName: 'APPLE INC',
+            sections: [{ conid: '265598', secType: 'STK', listingExchange: 'NASDAQ' }],
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            conid: 265598,
+            '55': 'AAPL',
+            '31': '168.42',
+            '84': '168.41',
+            '86': '168.43',
+            '88': '1,300',
+            '85': '600',
+            '7762': '52,345,678',
+            _updated: 1712596911593,
+          },
+        ]);
 
-      const results = await repository.searchInstruments('AAPL');
+      const quote = await repository.getQuoteBySymbol('AAPL');
 
-      expect(results).toEqual([]);
-      expect(mockClient.get).toHaveBeenCalledWith(
-        '/v1/api/iserver/secdef/search?symbol=AAPL'
-      );
-    });
-
-    it('returns empty array when response is not an array', async () => {
-      mockClient.get.mockResolvedValue({ error: 'something' });
-
-      const results = await repository.searchInstruments('INVALID');
-
-      expect(results).toEqual([]);
-    });
-
-    it('maps IBKR search response with sections to domain model', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 265598,
-          companyName: 'APPLE INC',
-          symbol: 'AAPL',
-          sections: [
-            {
-              conid: '265598',
-              secType: 'STK',
-              listingExchange: 'NASDAQ',
-            },
-          ],
-        },
-      ]);
-
-      const results = await repository.searchInstruments('AAPL');
-
-      expect(results).toHaveLength(1);
-      expect(results[0]).toEqual({
-        conid: 265598,
-        symbol: 'AAPL',
-        description: 'APPLE INC',
-        type: 'stock',
-        exchange: 'NASDAQ',
-      });
-    });
-
-    it('handles multiple sections per instrument', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 8314,
-          companyName: 'IBM CORP',
-          symbol: 'IBM',
-          sections: [
-            { conid: '8314', secType: 'STK', listingExchange: 'NYSE' },
-            { conid: '123456', secType: 'OPT', listingExchange: 'CBOE' },
-          ],
-        },
-      ]);
-
-      const results = await repository.searchInstruments('IBM');
-
-      expect(results).toHaveLength(2);
-      expect(results[0]).toMatchObject({
-        conid: 8314,
-        type: 'stock',
-        exchange: 'NYSE',
-      });
-      expect(results[1]).toMatchObject({
-        conid: 123456,
-        type: 'option',
-        exchange: 'CBOE',
-      });
-    });
-
-    it('falls back to top-level conid when no sections exist', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 12345,
-          symbol: 'TEST',
-          companyHeader: 'Test Company',
-        },
-      ]);
-
-      const results = await repository.searchInstruments('TEST');
-
-      expect(results).toHaveLength(1);
-      expect(results[0]).toEqual({
-        conid: 12345,
-        symbol: 'TEST',
-        description: 'Test Company',
-        type: 'stock',
-        exchange: '',
-      });
-    });
-
-    it('skips items without valid conid', async () => {
-      mockClient.get.mockResolvedValue([
-        { symbol: 'NOCONID', companyName: 'No Conid Corp' },
-        { conid: 0, symbol: 'ZEROCONID', companyName: 'Zero Conid Corp' },
-        { conid: 99999, symbol: 'VALID', companyName: 'Valid Corp' },
-      ]);
-
-      const results = await repository.searchInstruments('TEST');
-
-      expect(results).toHaveLength(1);
-      expect(results[0].symbol).toBe('VALID');
-    });
-
-    it('maps various security types correctly', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 1,
-          symbol: 'STK',
-          sections: [{ conid: '1', secType: 'STK', exchange: 'NYSE' }],
-        },
-        {
-          conid: 2,
-          symbol: 'FUT',
-          sections: [{ conid: '2', secType: 'FUT', exchange: 'CME' }],
-        },
-        {
-          conid: 3,
-          symbol: 'CASH',
-          sections: [{ conid: '3', secType: 'CASH', exchange: 'IDEALPRO' }],
-        },
-        {
-          conid: 4,
-          symbol: 'IND',
-          sections: [{ conid: '4', secType: 'IND', exchange: 'CBOE' }],
-        },
-        {
-          conid: 5,
-          symbol: 'BOND',
-          sections: [{ conid: '5', secType: 'BOND', exchange: 'SMART' }],
-        },
-        {
-          conid: 6,
-          symbol: 'FUND',
-          sections: [{ conid: '6', secType: 'FUND', exchange: 'ARCAEDGE' }],
-        },
-        {
-          conid: 7,
-          symbol: 'WAR',
-          sections: [{ conid: '7', secType: 'WAR', exchange: 'SMART' }],
-        },
-        {
-          conid: 8,
-          symbol: 'CUSTOM',
-          sections: [{ conid: '8', secType: 'CUSTOM', exchange: 'OTHER' }],
-        },
-      ]);
-
-      const results = await repository.searchInstruments('TEST');
-
-      expect(results.map((r) => r.type)).toEqual([
-        'stock',
-        'future',
-        'forex',
-        'index',
-        'bond',
-        'fund',
-        'warrant',
-        'custom',
-      ]);
-    });
-
-    it('URL-encodes the query parameter', async () => {
-      mockClient.get.mockResolvedValue([]);
-
-      await repository.searchInstruments('BRK B');
-
-      expect(mockClient.get).toHaveBeenCalledWith(
-        '/v1/api/iserver/secdef/search?symbol=BRK%20B'
-      );
-    });
-
-    it('uses exchange from section when listingExchange is not available', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 1,
-          symbol: 'TEST',
-          sections: [{ conid: '1', secType: 'STK', exchange: 'SMART' }],
-        },
-      ]);
-
-      const results = await repository.searchInstruments('TEST');
-
-      expect(results[0].exchange).toBe('SMART');
-    });
-
-    it('handles multiple search results', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 265598,
-          symbol: 'AAPL',
-          companyName: 'APPLE INC',
-          sections: [{ conid: '265598', secType: 'STK', listingExchange: 'NASDAQ' }],
-        },
-        {
-          conid: 76792991,
-          symbol: 'AAPL',
-          companyName: 'APPLE INC - LSE',
-          sections: [{ conid: '76792991', secType: 'STK', listingExchange: 'LSE' }],
-        },
-      ]);
-
-      const results = await repository.searchInstruments('AAPL');
-
-      expect(results).toHaveLength(2);
-      expect(results[0].exchange).toBe('NASDAQ');
-      expect(results[1].exchange).toBe('LSE');
-    });
-  });
-
-  describe('getQuote', () => {
-    it('returns quote with all fields mapped correctly', async () => {
-      mockClient.get.mockResolvedValue([
-        {
-          conid: 265598,
-          '55': 'AAPL',
-          '31': '168.42',
-          '84': '168.41',
-          '86': '168.43',
-          '88': '1,300',
-          '85': '600',
-          '7762': '52,345,678',
-          _updated: 1712596911593,
-        },
-      ]);
-
-      const quote = await repository.getQuote(265598);
-
-      expect(quote).not.toBeNull();
       expect(quote).toEqual({
         conid: 265598,
         symbol: 'AAPL',
@@ -264,60 +56,115 @@ describe('IbkrMarketDataRepository', () => {
         timestamp: new Date(1712596911593),
       });
       expect(mockClient.get).toHaveBeenCalledWith(
+        '/v1/api/iserver/secdef/search?symbol=AAPL'
+      );
+      expect(mockClient.get).toHaveBeenCalledWith(
         '/v1/api/iserver/marketdata/snapshot?conids=265598&fields=31,55,84,85,86,88,7762'
       );
     });
 
-    it('returns null when response is empty array', async () => {
+    it('returns null when symbol not found', async () => {
       mockClient.get.mockResolvedValue([]);
 
-      const quote = await repository.getQuote(265598);
+      const quote = await repository.getQuoteBySymbol('INVALID');
 
       expect(quote).toBeNull();
     });
 
-    it('returns null when response is not an array', async () => {
+    it('returns null when search returns non-array', async () => {
       mockClient.get.mockResolvedValue({ error: 'something' });
 
-      const quote = await repository.getQuote(265598);
+      const quote = await repository.getQuoteBySymbol('INVALID');
 
       expect(quote).toBeNull();
     });
-  });
 
-  describe('getQuotes', () => {
-    it('returns multiple quotes for multiple conids', async () => {
-      mockClient.get.mockResolvedValue([
-        { conid: 265598, '55': 'AAPL', '31': '168.00', _updated: 1712596911593 },
-        { conid: 8314, '55': 'IBM', '31': '185.50', _updated: 1712596911594 },
-      ]);
+    it('returns null when quote snapshot is empty', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([
+          { conid: 265598, symbol: 'AAPL', sections: [{ conid: '265598', secType: 'STK' }] },
+        ])
+        .mockResolvedValueOnce([]);
 
-      const quotes = await repository.getQuotes([265598, 8314]);
+      const quote = await repository.getQuoteBySymbol('AAPL');
 
-      expect(quotes).toHaveLength(2);
-      expect(quotes[0].symbol).toBe('AAPL');
-      expect(quotes[1].symbol).toBe('IBM');
-      expect(mockClient.get).toHaveBeenCalledWith(
-        '/v1/api/iserver/marketdata/snapshot?conids=265598,8314&fields=31,55,84,85,86,88,7762'
+      expect(quote).toBeNull();
+    });
+
+    it('prefers STK section over other types', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([
+          {
+            conid: 1,
+            symbol: 'AAPL',
+            sections: [
+              { conid: '999', secType: 'OPT', listingExchange: 'CBOE' },
+              { conid: '265598', secType: 'STK', listingExchange: 'NASDAQ' },
+            ],
+          },
+        ])
+        .mockResolvedValueOnce([
+          { conid: 265598, '55': 'AAPL', '31': '168.00', _updated: 1712596911593 },
+        ]);
+
+      const quote = await repository.getQuoteBySymbol('AAPL');
+
+      expect(quote?.conid).toBe(265598);
+      expect(mockClient.get).toHaveBeenLastCalledWith(
+        '/v1/api/iserver/marketdata/snapshot?conids=265598&fields=31,55,84,85,86,88,7762'
       );
     });
 
-    it('returns empty array for empty conids list', async () => {
-      const quotes = await repository.getQuotes([]);
+    it('matches symbol case-insensitively', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([
+          { conid: 265598, symbol: 'AAPL', sections: [{ conid: '265598', secType: 'STK' }] },
+        ])
+        .mockResolvedValueOnce([
+          { conid: 265598, '55': 'AAPL', '31': '168.00', _updated: 1712596911593 },
+        ]);
 
-      expect(quotes).toEqual([]);
-      expect(mockClient.get).not.toHaveBeenCalled();
+      const quote = await repository.getQuoteBySymbol('aapl');
+
+      expect(quote?.symbol).toBe('AAPL');
+    });
+
+    it('falls back to first result if exact match not found', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([
+          { conid: 12345, symbol: 'AAPLX', sections: [{ conid: '12345', secType: 'STK' }] },
+        ])
+        .mockResolvedValueOnce([
+          { conid: 12345, '55': 'AAPLX', '31': '50.00', _updated: 1712596911593 },
+        ]);
+
+      const quote = await repository.getQuoteBySymbol('AAPL');
+
+      expect(quote?.conid).toBe(12345);
+    });
+
+    it('URL-encodes the symbol', async () => {
+      mockClient.get.mockResolvedValue([]);
+
+      await repository.getQuoteBySymbol('BRK B');
+
+      expect(mockClient.get).toHaveBeenCalledWith(
+        '/v1/api/iserver/secdef/search?symbol=BRK%20B'
+      );
     });
 
     it('handles partial quote data gracefully', async () => {
-      mockClient.get.mockResolvedValue([
-        { conid: 265598, '55': 'AAPL', _updated: 1712596911593 },
-      ]);
+      mockClient.get
+        .mockResolvedValueOnce([
+          { conid: 265598, symbol: 'AAPL', sections: [{ conid: '265598', secType: 'STK' }] },
+        ])
+        .mockResolvedValueOnce([
+          { conid: 265598, '55': 'AAPL', _updated: 1712596911593 },
+        ]);
 
-      const quotes = await repository.getQuotes([265598]);
+      const quote = await repository.getQuoteBySymbol('AAPL');
 
-      expect(quotes).toHaveLength(1);
-      expect(quotes[0]).toEqual({
+      expect(quote).toEqual({
         conid: 265598,
         symbol: 'AAPL',
         lastPrice: undefined,
@@ -328,6 +175,18 @@ describe('IbkrMarketDataRepository', () => {
         volume: undefined,
         timestamp: new Date(1712596911593),
       });
+    });
+
+    it('uses top-level conid when no sections exist', async () => {
+      mockClient.get
+        .mockResolvedValueOnce([{ conid: 12345, symbol: 'TEST' }])
+        .mockResolvedValueOnce([
+          { conid: 12345, '55': 'TEST', '31': '100.00', _updated: 1712596911593 },
+        ]);
+
+      const quote = await repository.getQuoteBySymbol('TEST');
+
+      expect(quote?.conid).toBe(12345);
     });
   });
 });

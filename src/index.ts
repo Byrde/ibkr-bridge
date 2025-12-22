@@ -34,20 +34,25 @@ async function main() {
     console.log('Continuing without gateway - health checks will report degraded status');
   }
 
-  // Wait for gateway to be ready before starting session manager
+  // Wait for gateway to be ready
   try {
     await waitForGatewayReady(gatewayManager);
 
-    // Start session manager (handles auth + heartbeat + auto re-auth)
-    console.log('Starting session manager...');
-    await sessionManager.start({
-      username: config.ibkr.username,
-      password: config.ibkr.password,
-      paperTrading: config.ibkr.paperTrading,
-    });
-    console.log(`Session manager started (paperTrading=${config.ibkr.paperTrading})`);
+    // Start session manager if auto-auth is enabled
+    if (config.enableAutoAuth) {
+      console.log('Starting session manager (auto-auth enabled)...');
+      await sessionManager.start({
+        username: config.ibkr.username!,
+        password: config.ibkr.password!,
+        totpSecret: config.ibkr.totpSecret,
+        paperTrading: config.ibkr.paperTrading,
+      });
+      console.log(`Session manager started (paperTrading=${config.ibkr.paperTrading})`);
+    } else {
+      console.log('Auto-auth disabled - use POST /api/v1/auth/login to authenticate');
+    }
   } catch (error) {
-    console.warn('Session manager failed to start, API will be in degraded mode:', error);
+    console.warn('Gateway/session manager failed to start, API will be in degraded mode:', error);
   }
 
   // Start the API server
@@ -63,11 +68,14 @@ async function main() {
   const shutdown = async (signal: string) => {
     console.log(`Received ${signal}, shutting down...`);
 
-    try {
-      await sessionManager.stop();
-      console.log('Session manager stopped');
-    } catch (error) {
-      console.error('Error stopping session manager:', error);
+    // Only stop session manager if it was started
+    if (config.enableAutoAuth) {
+      try {
+        await sessionManager.stop();
+        console.log('Session manager stopped');
+      } catch (error) {
+        console.error('Error stopping session manager:', error);
+      }
     }
 
     try {

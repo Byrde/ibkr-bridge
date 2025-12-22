@@ -67,13 +67,21 @@ async function generateSpec() {
     getProcessInfo: () => ({ pid: null, startedAt: null, restartCount: 0 }),
   };
 
-  const mockAuthService = {
-    isAuthenticated: () => false,
-  };
-
   const mockSessionManager = {
     getSession: () => ({ status: 'disconnected' as const }),
     isReauthenticating: () => false,
+    start: async () => {},
+    stop: async () => {},
+    waitForReauth: async () => {},
+  };
+
+  const mockAuthService = {
+    isAuthenticated: () => false,
+    login: async () => ({ status: 'authenticated' as const }),
+    submitTOTP: async () => ({ status: 'authenticated' as const }),
+    checkAuthStatus: async () => ({ connected: false, authenticated: false, competing: false }),
+    heartbeat: async () => ({ valid: false }),
+    logout: async () => {},
   };
 
   const mockAccountRepository = {
@@ -109,7 +117,11 @@ async function generateSpec() {
         accountRepository: mockAccountRepository,
       });
       await marketDataRoutes(instance, { marketDataRepository: mockMarketDataRepository });
-      await authRoutes(instance, { sessionManager: mockSessionManager as never });
+      await authRoutes(instance, {
+        sessionManager: mockSessionManager as never,
+        authService: mockAuthService as never,
+        enableAutoAuth: false,
+      });
     },
     { prefix: '/api/v1' }
   );
@@ -121,10 +133,10 @@ async function generateSpec() {
   const spec = fastify.swagger();
 
   // Write to file
-  const outputPath = path.join(__dirname, '..', 'openapi.bridge.json');
+  const outputPath = path.join(__dirname, '..', 'openapi.json');
   fs.writeFileSync(outputPath, JSON.stringify(spec, null, 2) + '\n');
 
-  console.log(`Bridge OpenAPI specification written to ${outputPath}`);
+  console.log(`OpenAPI specification written to ${outputPath}`);
 
   await fastify.close();
 }

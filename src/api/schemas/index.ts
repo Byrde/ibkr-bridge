@@ -47,14 +47,6 @@ export const AccountSchema = {
   required: ['accountId', 'accountType', 'baseCurrency', 'balances', 'positions'],
 } as const;
 
-export const PositionsResponseSchema = {
-  type: 'object',
-  properties: {
-    positions: { type: 'array', items: PositionSchema },
-  },
-  required: ['positions'],
-} as const;
-
 // Order schemas
 export const InstrumentSchema = {
   type: 'object',
@@ -141,26 +133,6 @@ export const OrdersResponseSchema = {
 } as const;
 
 // Market data schemas
-export const InstrumentSearchResultSchema = {
-  type: 'object',
-  properties: {
-    conid: { type: 'integer', example: 265598 },
-    symbol: { type: 'string', example: 'AAPL' },
-    description: { type: 'string', example: 'APPLE INC' },
-    type: { type: 'string', example: 'STK' },
-    exchange: { type: 'string', example: 'NASDAQ' },
-  },
-  required: ['conid', 'symbol', 'description', 'type', 'exchange'],
-} as const;
-
-export const InstrumentsResponseSchema = {
-  type: 'object',
-  properties: {
-    instruments: { type: 'array', items: InstrumentSearchResultSchema },
-  },
-  required: ['instruments'],
-} as const;
-
 export const QuoteSchema = {
   type: 'object',
   properties: {

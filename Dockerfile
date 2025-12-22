@@ -53,7 +53,7 @@ RUN mkdir -p /opt/ibkr && \
     rm /tmp/gateway.zip && \
     chmod +x ${GATEWAY_DIR}/bin/run.sh
 
-# Copy the gateway application
+# Copy the application
 COPY package*.json ./
 RUN npm ci --omit=dev
 
@@ -63,19 +63,30 @@ RUN npx playwright install chromium
 
 COPY --from=builder /app/dist ./dist
 
-# Required environment variables (must be provided at runtime):
-#   PORT               - API server port (e.g., 3000)
-#   HOST               - API server host (e.g., 0.0.0.0)
-#   GATEWAY_PORT       - IBKR Gateway port (e.g., 5000)
-#   GATEWAY_PATH       - Path to IBKR Gateway (default: /opt/ibkr)
-#   GATEWAY_CONFIG_PATH - Path to gateway config (e.g., /opt/ibkr/root/conf.yaml)
+# Required when ENABLE_AUTO_AUTH=true (default):
+#   IBKR_USERNAME         - Interactive Brokers username
+#   IBKR_PASSWORD         - Interactive Brokers password
+#
+# Optional environment variables:
+#   BRIDGE_USERNAME       - Basic auth username for API access (if not set, API is unprotected)
+#   BRIDGE_PASSWORD       - Basic auth password for API access (if not set, API is unprotected)
+#   ENABLE_AUTO_AUTH      - Auto-authenticate on startup (default: true)
+#   ENABLE_GATEWAY_PROXY  - Expose /api/gateway/* proxy (default: false)
+#   IBKR_TOTP_SECRET      - TOTP secret for 2FA (base32 encoded)
+#   IBKR_PAPER_TRADING    - Use paper trading mode (default: false)
+#   HEARTBEAT_INTERVAL_MS - Session heartbeat interval (default: 60000)
+#   PORT                  - API server port (default: 3000)
+#   HOST                  - API server host (default: 0.0.0.0)
+#   GATEWAY_PORT          - IBKR Gateway port (default: 5000)
+#   GATEWAY_PATH          - Path to IBKR Gateway (default: /opt/ibkr)
+#   GATEWAY_CONFIG_PATH   - Path to gateway config (default: /opt/ibkr/root/conf.yaml)
 
 # Expose API port only (IBKR Gateway on 5000 is internal)
 EXPOSE 3000
 
-# Health check against the gateway API
+# Health check against the API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/v1/health || exit 1
 
-# Run the gateway server (not the full bridge)
-CMD ["node", "dist/gateway-server.js"]
+CMD ["node", "dist/index.js"]
+

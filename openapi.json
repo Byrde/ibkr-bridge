@@ -237,99 +237,6 @@
         }
       }
     },
-    "/api/v1/account/positions": {
-      "get": {
-        "tags": [
-          "Account"
-        ],
-        "description": "Get all positions for the account",
-        "security": [
-          {
-            "basicAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "positions": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "conid": {
-                            "type": "integer",
-                            "example": 265598
-                          },
-                          "symbol": {
-                            "type": "string",
-                            "example": "AAPL"
-                          },
-                          "type": {
-                            "type": "string",
-                            "example": "STK"
-                          },
-                          "quantity": {
-                            "type": "number",
-                            "example": 100
-                          },
-                          "avgCost": {
-                            "type": "number",
-                            "example": 150.25
-                          },
-                          "marketValue": {
-                            "type": "number",
-                            "example": 17500
-                          },
-                          "unrealizedPnl": {
-                            "type": "number",
-                            "example": 475
-                          }
-                        },
-                        "required": [
-                          "conid",
-                          "symbol",
-                          "type",
-                          "quantity",
-                          "avgCost",
-                          "marketValue",
-                          "unrealizedPnl"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "positions"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/orders": {
       "get": {
         "tags": [
@@ -1019,117 +926,22 @@
         }
       }
     },
-    "/api/v1/instruments": {
+    "/api/v1/quote/{symbol}": {
       "get": {
         "tags": [
           "Market Data"
         ],
-        "description": "Search for instruments by symbol or name",
+        "description": "Get quote for a symbol",
         "parameters": [
           {
             "schema": {
               "type": "string",
               "example": "AAPL"
             },
-            "in": "query",
-            "name": "q",
-            "required": true,
-            "description": "Search query (symbol or name)"
-          }
-        ],
-        "security": [
-          {
-            "basicAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "instruments": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "conid": {
-                            "type": "integer",
-                            "example": 265598
-                          },
-                          "symbol": {
-                            "type": "string",
-                            "example": "AAPL"
-                          },
-                          "description": {
-                            "type": "string",
-                            "example": "APPLE INC"
-                          },
-                          "type": {
-                            "type": "string",
-                            "example": "STK"
-                          },
-                          "exchange": {
-                            "type": "string",
-                            "example": "NASDAQ"
-                          }
-                        },
-                        "required": [
-                          "conid",
-                          "symbol",
-                          "description",
-                          "type",
-                          "exchange"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "instruments"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/quotes/{conid}": {
-      "get": {
-        "tags": [
-          "Market Data"
-        ],
-        "description": "Get quote data for an instrument",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "265598"
-            },
             "in": "path",
-            "name": "conid",
+            "name": "symbol",
             "required": true,
-            "description": "Contract ID of the instrument"
+            "description": "Ticker symbol"
           }
         ],
         "security": [
@@ -1186,24 +998,6 @@
                     "conid",
                     "symbol",
                     "timestamp"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
                   ]
                 }
               }
@@ -1291,6 +1085,99 @@
                     "reauthenticating",
                     "timestamp"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "description": "Authenticate with IBKR Gateway.\n\nIBKR credentials are passed via Basic Auth header.\n\n**Headers:**\n- `Authorization`: Basic Auth with IBKR username:password (required)\n- `X-TOTP-Secret`: TOTP secret for 2FA, base32 encoded (required for live trading)\n- `X-Paper-Trading`: Set to \"true\" for paper trading mode (optional)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-totp-secret",
+            "required": false,
+            "description": "TOTP secret for 2FA (base32 encoded). Required for live trading."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "header",
+            "name": "x-paper-trading",
+            "required": false,
+            "description": "Enable paper trading mode. No TOTP required for paper trading."
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }

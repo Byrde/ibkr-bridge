@@ -54,6 +54,7 @@ export interface HeadlessLoginProvider {
  */
 export class IbkrAuthService implements AuthenticationService {
   private headlessLoginService: HeadlessLoginProvider;
+  private currentTotpSecret?: string;
 
   constructor(
     private readonly client: GatewayClient,
@@ -69,6 +70,9 @@ export class IbkrAuthService implements AuthenticationService {
 
   async login(credentials: Credentials): Promise<Session> {
     this.sessionRepo.updateSession({ status: 'authenticating' });
+
+    // Use totpSecret from credentials if provided, otherwise fall back to constructor-injected one
+    this.currentTotpSecret = credentials.totpSecret ?? this.totpSecret?.secret;
 
     try {
       // Check if already authenticated
@@ -89,7 +93,7 @@ export class IbkrAuthService implements AuthenticationService {
       const loginResult = await this.headlessLoginService.login({
         username: credentials.username,
         password: credentials.password,
-        totpSecret: this.totpSecret?.secret,
+        totpSecret: this.currentTotpSecret,
         paperTrading: credentials.paperTrading,
       });
 
@@ -202,7 +206,7 @@ export class IbkrAuthService implements AuthenticationService {
   private async handleTotpChallenge(challenge: string): Promise<void> {
     this.sessionRepo.updateSession({ status: 'awaiting_totp' });
 
-    if (!this.totpSecret) {
+    if (!this.currentTotpSecret) {
       throw new AuthenticationError('TOTP challenge received but no TOTP secret configured', 'TOTP_REQUIRED');
     }
 
@@ -254,8 +258,9 @@ export class IbkrAuthService implements AuthenticationService {
   }
 
   generateTOTP(): string | null {
-    if (!this.totpSecret) return null;
-    return authenticator.generate(this.totpSecret.secret);
+    const secret = this.currentTotpSecret ?? this.totpSecret?.secret;
+    if (!secret) return null;
+    return authenticator.generate(secret);
   }
 
   async heartbeat(): Promise<HeartbeatResult> {

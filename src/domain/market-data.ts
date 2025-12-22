@@ -10,19 +10,10 @@ export interface Quote {
   timestamp: Date;
 }
 
-export interface InstrumentSearchResult {
-  conid: number;
-  symbol: string;
-  description: string;
-  type: string;
-  exchange: string;
+export interface MarketDataRepository {
+  getQuoteBySymbol(symbol: string): Promise<Quote | null>;
 }
 
-export interface MarketDataRepository {
-  searchInstruments(query: string): Promise<InstrumentSearchResult[]>;
-  getQuote(conid: number): Promise<Quote | null>;
-  getQuotes(conids: number[]): Promise<Quote[]>;
-}
 
 
 

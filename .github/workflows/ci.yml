@@ -43,31 +43,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build and publish gateway image first (base image)
-      - name: Build & Publish Gateway Image
+      - name: Build & Publish Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.gateway
+          file: Dockerfile
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:${{ needs.semantic-release.outputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:latest
-          labels: |
-            org.opencontainers.image.version=${{ needs.semantic-release.outputs.version }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Build and publish bridge image (extends gateway)
-      - name: Build & Publish Bridge Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.bridge
-          push: true
-          build-args: |
-            GATEWAY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/ibkr-gateway:${{ needs.semantic-release.outputs.version }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge:${{ needs.semantic-release.outputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/ibkr-bridge:latest

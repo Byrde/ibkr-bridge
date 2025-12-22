@@ -1,8 +1,4 @@
-import type {
-  InstrumentSearchResult,
-  MarketDataRepository,
-  Quote,
-} from '../domain/market-data';
+import type { MarketDataRepository, Quote } from '../domain/market-data';
 import type { GatewayClient } from './gateway-client';
 
 /** Raw contract section from IBKR secdef/search response */
@@ -55,115 +51,63 @@ interface IbkrSearchResult {
 export class IbkrMarketDataRepository implements MarketDataRepository {
   constructor(private readonly client: GatewayClient) {}
 
-  async searchInstruments(query: string): Promise<InstrumentSearchResult[]> {
-    const response = await this.client.get<IbkrSearchResult[]>(
-      `/v1/api/iserver/secdef/search?symbol=${encodeURIComponent(query)}`
-    );
-
-    if (!Array.isArray(response)) {
-      return [];
+  async getQuoteBySymbol(symbol: string): Promise<Quote | null> {
+    const conid = await this.resolveConid(symbol);
+    if (!conid) {
+      return null;
     }
 
-    return response.flatMap((item) => this.mapSearchResult(item));
-  }
-
-  private mapSearchResult(raw: IbkrSearchResult): InstrumentSearchResult[] {
-    const results: InstrumentSearchResult[] = [];
-    const symbol = raw.symbol ?? '';
-    const description = raw.companyName ?? raw.description ?? raw.companyHeader ?? '';
-
-    // Skip entries without a symbol
-    if (!symbol) {
-      return results;
-    }
-
-    const topLevelConid = this.parseConid(raw.conid) ?? 0;
-
-    // If sections exist, create an entry for each tradeable contract
-    if (raw.sections && raw.sections.length > 0) {
-      for (const section of raw.sections) {
-        const conid = this.parseConid(section.conid) ?? topLevelConid;
-        if (conid === 0) continue;
-
-        results.push({
-          conid,
-          symbol,
-          description,
-          type: this.mapSecurityType(section.secType),
-          exchange: section.listingExchange ?? section.exchange ?? '',
-        });
-      }
-    } else if (topLevelConid > 0) {
-      // Fallback: use top-level conid if no sections
-      results.push({
-        conid: topLevelConid,
-        symbol,
-        description,
-        type: 'stock',
-        exchange: '',
-      });
-    }
-
-    return results;
-  }
-
-  private parseConid(value: string | number | undefined): number | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return value;
-    const parsed = parseInt(value, 10);
-    return isNaN(parsed) ? undefined : parsed;
-  }
-
-  private mapSecurityType(secType?: string): string {
-    if (!secType) return 'stock';
-    const t = secType.toUpperCase();
-    switch (t) {
-      case 'STK':
-        return 'stock';
-      case 'OPT':
-        return 'option';
-      case 'FUT':
-        return 'future';
-      case 'CASH':
-      case 'FX':
-        return 'forex';
-      case 'IND':
-        return 'index';
-      case 'BOND':
-        return 'bond';
-      case 'FUND':
-      case 'ETF':
-        return 'fund';
-      case 'WAR':
-        return 'warrant';
-      default:
-        return secType.toLowerCase();
-    }
-  }
-
-  async getQuote(conid: number): Promise<Quote | null> {
-    const quotes = await this.getQuotes([conid]);
-    return quotes[0] ?? null;
-  }
-
-  async getQuotes(conids: number[]): Promise<Quote[]> {
-    if (conids.length === 0) {
-      return [];
-    }
-
-    const conidList = conids.join(',');
     // Fields: 31=last, 55=symbol, 84=bid, 85=askSize, 86=ask, 88=bidSize, 7762=volume
     const response = await this.client.get<IbkrSnapshotResponse[]>(
-      `/v1/api/iserver/marketdata/snapshot?conids=${conidList}&fields=31,55,84,85,86,88,7762`
+      `/v1/api/iserver/marketdata/snapshot?conids=${conid}&fields=31,55,84,85,86,88,7762`
     );
 
-    if (!Array.isArray(response)) {
-      return [];
+    if (!Array.isArray(response) || response.length === 0) {
+      return null;
     }
 
-    return response
-      .filter((item) => item.conid !== undefined)
-      .map((item) => this.mapSnapshotToQuote(item));
+    return this.mapSnapshotToQuote(response[0]);
+  }
+
+  private async resolveConid(symbol: string): Promise<number | null> {
+    const response = await this.client.get<IbkrSearchResult[]>(
+      `/v1/api/iserver/secdef/search?symbol=${encodeURIComponent(symbol)}`
+    );
+
+    if (!Array.isArray(response) || response.length === 0) {
+      return null;
+    }
+
+    // Find exact symbol match, prefer STK (stock) type
+    for (const item of response) {
+      if (item.symbol?.toUpperCase() !== symbol.toUpperCase()) continue;
+
+      if (item.sections && item.sections.length > 0) {
+        // Prefer STK section
+        const stkSection = item.sections.find((s) => s.secType === 'STK');
+        const section = stkSection ?? item.sections[0];
+        const conid = this.parseConid(section.conid);
+        if (conid) return conid;
+      }
+
+      const conid = this.parseConid(item.conid);
+      if (conid) return conid;
+    }
+
+    // Fallback: first result with a conid
+    const first = response[0];
+    if (first.sections && first.sections.length > 0) {
+      const conid = this.parseConid(first.sections[0].conid);
+      if (conid) return conid;
+    }
+    return this.parseConid(first.conid) ?? null;
+  }
+
+  private parseConid(value: string | number | undefined): number | null {
+    if (value === undefined) return null;
+    if (typeof value === 'number') return value;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? null : parsed;
   }
 
   private mapSnapshotToQuote(raw: IbkrSnapshotResponse): Quote {
@@ -184,7 +128,6 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
     if (value === undefined || value === '') {
       return undefined;
     }
-    // Remove commas used as thousands separators
     const cleaned = value.replace(/,/g, '');
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? undefined : parsed;

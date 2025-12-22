@@ -6,22 +6,16 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "start:gateway": "node dist/gateway-server.js",
     "dev": "tsx watch src/index.ts",
-    "dev:gateway": "tsx watch src/gateway-server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts",
-    "openapi:generate": "tsx scripts/generate-openapi.ts && tsx scripts/generate-openapi-gateway.ts",
-    "openapi:generate:bridge": "tsx scripts/generate-openapi.ts",
-    "openapi:generate:gateway": "tsx scripts/generate-openapi-gateway.ts",
-    "openapi:check": "npm run openapi:generate && git diff --exit-code openapi.bridge.json openapi.gateway.json",
-    "docker:build:gateway": "docker build -f Dockerfile.gateway -t ibkr-gateway .",
-    "docker:build:bridge": "docker build -f Dockerfile.gateway -t ibkr-gateway . && docker build -f Dockerfile.bridge -t ibkr-bridge --build-arg GATEWAY_IMAGE=ibkr-gateway .",
-    "docker:build": "npm run docker:build:bridge"
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "openapi:check": "npm run openapi:generate && git diff --exit-code openapi.json",
+    "docker:build": "docker build -t ibkr-bridge ."
   },
   "keywords": [
     "ibkr",

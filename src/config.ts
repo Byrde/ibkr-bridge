@@ -1,18 +1,24 @@
 export interface Config {
-  // Bridge API settings
+  // API server settings
   port: number;
   host: string;
 
-  // Basic Auth credentials for bridge access
-  auth: {
+  // Basic Auth credentials for API access (optional - if not set, API is unprotected)
+  auth?: {
     username: string;
     password: string;
   };
 
-  // IBKR credentials
+  // Feature flags
+  /** When true, automatically authenticate at startup and maintain session */
+  enableAutoAuth: boolean;
+  /** When true, expose /api/gateway/* proxy to IBKR gateway */
+  enableGatewayProxy: boolean;
+
+  // IBKR credentials (required when enableAutoAuth is true)
   ibkr: {
-    username: string;
-    password: string;
+    username?: string;
+    password?: string;
     totpSecret?: string;
     /** Paper trading mode - uses paper trading toggle, no 2FA required */
     paperTrading: boolean;
@@ -48,18 +54,32 @@ function optionalEnv(name: string): string | undefined {
 }
 
 export function loadConfig(): Config {
+  const enableAutoAuth = optionalEnv('ENABLE_AUTO_AUTH')?.toLowerCase() !== 'false';
+  const enableGatewayProxy = optionalEnv('ENABLE_GATEWAY_PROXY')?.toLowerCase() === 'true';
+
+  // IBKR credentials are required when auto auth is enabled
+  const ibkrUsername = enableAutoAuth ? requireEnv('IBKR_USERNAME') : optionalEnv('IBKR_USERNAME');
+  const ibkrPassword = enableAutoAuth ? requireEnv('IBKR_PASSWORD') : optionalEnv('IBKR_PASSWORD');
+
+  // Basic auth is optional - only configure if both username and password are set
+  const bridgeUsername = optionalEnv('BRIDGE_USERNAME');
+  const bridgePassword = optionalEnv('BRIDGE_PASSWORD');
+  const auth = bridgeUsername && bridgePassword
+    ? { username: bridgeUsername, password: bridgePassword }
+    : undefined;
+
   return {
     port: parseInt(process.env.PORT ?? '3000', 10),
     host: process.env.HOST ?? '0.0.0.0',
 
-    auth: {
-      username: requireEnv('BRIDGE_USERNAME'),
-      password: requireEnv('BRIDGE_PASSWORD'),
-    },
+    auth,
+
+    enableAutoAuth,
+    enableGatewayProxy,
 
     ibkr: {
-      username: requireEnv('IBKR_USERNAME'),
-      password: requireEnv('IBKR_PASSWORD'),
+      username: ibkrUsername,
+      password: ibkrPassword,
       totpSecret: optionalEnv('IBKR_TOTP_SECRET'),
       paperTrading: optionalEnv('IBKR_PAPER_TRADING')?.toLowerCase() === 'true',
     },
