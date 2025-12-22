@@ -50,11 +50,12 @@ npm run dev
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ENABLE_AUTO_AUTH` | Auto-authenticate on startup | `true` |
+| `ENABLE_BASIC_AUTH` | Require basic auth for API access | `false` |
 | `ENABLE_GATEWAY_PROXY` | Expose `/api/gateway/*` proxy | `false` |
-| `BRIDGE_USERNAME` | Basic auth username (optional) | - |
-| `BRIDGE_PASSWORD` | Basic auth password (optional) | - |
-| `IBKR_USERNAME` | IBKR username (required if auto-auth) | - |
-| `IBKR_PASSWORD` | IBKR password (required if auto-auth) | - |
+| `BRIDGE_USERNAME` | Basic auth username (required if basic auth enabled) | - |
+| `BRIDGE_PASSWORD` | Basic auth password (required if basic auth enabled) | - |
+| `IBKR_USERNAME` | IBKR username (required if auto-auth enabled) | - |
+| `IBKR_PASSWORD` | IBKR password (required if auto-auth enabled) | - |
 | `IBKR_TOTP_SECRET` | TOTP secret for 2FA (base32) | - |
 | `IBKR_PAPER_TRADING` | Use paper trading mode | `false` |
 | `PORT` | API server port | `3000` |
@@ -64,7 +65,7 @@ npm run dev
 
 ### Basic Auth
 
-Basic auth is **optional**. If `BRIDGE_USERNAME` and `BRIDGE_PASSWORD` are both set, all API endpoints (except `/api/v1/health`) require authentication. If not set, the API is unprotected.
+Set `ENABLE_BASIC_AUTH=true` to require authentication for all API endpoints (except `/api/v1/health`). When enabled, `BRIDGE_USERNAME` and `BRIDGE_PASSWORD` are required.
 
 ## API Endpoints
 
@@ -166,6 +167,8 @@ To configure TOTP:
 
 ```bash
 export BRIDGE_URL=http://localhost:3000
+
+# Only needed if ENABLE_BASIC_AUTH=true
 export BRIDGE_USERNAME=admin
 export BRIDGE_PASSWORD=secret
 

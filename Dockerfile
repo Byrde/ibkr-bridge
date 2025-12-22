@@ -67,10 +67,13 @@ COPY --from=builder /app/dist ./dist
 #   IBKR_USERNAME         - Interactive Brokers username
 #   IBKR_PASSWORD         - Interactive Brokers password
 #
+# Required when ENABLE_BASIC_AUTH=true:
+#   BRIDGE_USERNAME       - Basic auth username for API access
+#   BRIDGE_PASSWORD       - Basic auth password for API access
+#
 # Optional environment variables:
-#   BRIDGE_USERNAME       - Basic auth username for API access (if not set, API is unprotected)
-#   BRIDGE_PASSWORD       - Basic auth password for API access (if not set, API is unprotected)
 #   ENABLE_AUTO_AUTH      - Auto-authenticate on startup (default: true)
+#   ENABLE_BASIC_AUTH     - Require basic auth for API access (default: false)
 #   ENABLE_GATEWAY_PROXY  - Expose /api/gateway/* proxy (default: false)
 #   IBKR_TOTP_SECRET      - TOTP secret for 2FA (base32 encoded)
 #   IBKR_PAPER_TRADING    - Use paper trading mode (default: false)

@@ -56,16 +56,15 @@ function optionalEnv(name: string): string | undefined {
 export function loadConfig(): Config {
   const enableAutoAuth = optionalEnv('ENABLE_AUTO_AUTH')?.toLowerCase() !== 'false';
   const enableGatewayProxy = optionalEnv('ENABLE_GATEWAY_PROXY')?.toLowerCase() === 'true';
+  const enableBasicAuth = optionalEnv('ENABLE_BASIC_AUTH')?.toLowerCase() === 'true';
 
   // IBKR credentials are required when auto auth is enabled
   const ibkrUsername = enableAutoAuth ? requireEnv('IBKR_USERNAME') : optionalEnv('IBKR_USERNAME');
   const ibkrPassword = enableAutoAuth ? requireEnv('IBKR_PASSWORD') : optionalEnv('IBKR_PASSWORD');
 
-  // Basic auth is optional - only configure if both username and password are set
-  const bridgeUsername = optionalEnv('BRIDGE_USERNAME');
-  const bridgePassword = optionalEnv('BRIDGE_PASSWORD');
-  const auth = bridgeUsername && bridgePassword
-    ? { username: bridgeUsername, password: bridgePassword }
+  // Basic auth credentials are required when basic auth is enabled
+  const auth = enableBasicAuth
+    ? { username: requireEnv('BRIDGE_USERNAME'), password: requireEnv('BRIDGE_PASSWORD') }
     : undefined;
 
   return {
