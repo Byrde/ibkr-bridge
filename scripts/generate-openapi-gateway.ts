@@ -119,7 +119,7 @@ IBKR credentials are passed via Basic Auth. Use the **Authorize** button to set 
         },
       }, async () => ({}));
     },
-    { prefix: '/api/v1' }
+    { prefix: '/api' }
   );
 
   // Document the proxy behavior
@@ -127,12 +127,12 @@ IBKR credentials are passed via Basic Auth. Use the **Authorize** button to set 
     async (instance) => {
       instance.all('/*', {
         schema: {
-          description: 'All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.',
+          description: 'All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.',
           tags: ['Proxy'],
         },
       }, async () => ({}));
     },
-    { prefix: '/v1/api' }
+    { prefix: '/api/gateway' }
   );
 
   // Wait for routes to be ready

@@ -16,7 +16,7 @@
     "schemas": {}
   },
   "paths": {
-    "/api/v1/health": {
+    "/api/health": {
       "get": {
         "tags": [
           "Health"
@@ -71,7 +71,7 @@
         }
       }
     },
-    "/api/v1/auth/login": {
+    "/api/auth/login": {
       "post": {
         "tags": [
           "Auth"
@@ -150,12 +150,12 @@
         }
       }
     },
-    "/v1/api/{*}": {
+    "/api/gateway/{*}": {
       "get": {
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -176,7 +176,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -197,7 +197,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -218,7 +218,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -239,7 +239,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -260,7 +260,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -281,7 +281,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {
@@ -302,7 +302,7 @@
         "tags": [
           "Proxy"
         ],
-        "description": "All requests under /v1/api/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
+        "description": "All requests under /api/gateway/* are proxied directly to the IBKR Client Portal Gateway. Refer to IBKR documentation for available endpoints.",
         "parameters": [
           {
             "schema": {

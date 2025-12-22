@@ -128,7 +128,7 @@ export async function createGatewayApp(config: GatewayAppConfig) {
   });
 
   // Health check endpoint
-  fastify.get('/api/v1/health', {
+  fastify.get('/api/health', {
     schema: {
       description: 'Gateway health check',
       tags: ['Health'],
@@ -174,7 +174,7 @@ export async function createGatewayApp(config: GatewayAppConfig) {
       'x-totp-secret'?: string;
       'x-paper-trading'?: string;
     };
-  }>('/api/v1/auth/login', {
+  }>('/api/auth/login', {
     schema: {
       description: `Authenticate with IBKR Gateway using headless browser login.
 
@@ -293,10 +293,10 @@ IBKR credentials are passed via Basic Auth. Use the **Authorize** button to set 
     };
   });
 
-  // Proxy all /v1/api/* requests to the IBKR Gateway
+  // Proxy all /api/gateway/* requests to the IBKR Gateway
   await fastify.register(fastifyHttpProxy, {
     upstream: gatewayManager.getBaseUrl(),
-    prefix: '/v1/api',
+    prefix: '/api/gateway',
     rewritePrefix: '/v1/api',
     http: {
       // Gateway uses self-signed certificates
