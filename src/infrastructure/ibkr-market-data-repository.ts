@@ -49,27 +49,62 @@ interface IbkrSearchResult {
 }
 
 export class IbkrMarketDataRepository implements MarketDataRepository {
+  private static readonly SNAPSHOT_FIELDS = '31,55,84,85,86,88,7762';
+  private static readonly MAX_RETRIES = 3;
+  private static readonly RETRY_DELAY_MS = 250;
+
   constructor(private readonly client: GatewayClient) {}
 
-  async getQuoteBySymbol(symbol: string): Promise<Quote | null> {
-    const conid = await this.resolveConid(symbol);
+  async getQuoteBySymbol(symbol: string, secType?: string): Promise<Quote | null> {
+    const conid = await this.resolveConid(symbol, secType);
     if (!conid) {
       return null;
     }
 
-    // Fields: 31=last, 55=symbol, 84=bid, 85=askSize, 86=ask, 88=bidSize, 7762=volume
+    // IBKR requires "priming" - first request may return incomplete data.
+    // Retry until we get price data or exhaust retries.
+    for (let attempt = 0; attempt < IbkrMarketDataRepository.MAX_RETRIES; attempt++) {
+      const response = await this.fetchSnapshot(conid);
+      if (!response) {
+        return null;
+      }
+
+      const quote = this.mapSnapshotToQuote(response);
+      if (this.isQuoteComplete(quote)) {
+        return quote;
+      }
+
+      // Wait before retry
+      await this.delay(IbkrMarketDataRepository.RETRY_DELAY_MS);
+    }
+
+    // Return whatever we have after max retries
+    const finalResponse = await this.fetchSnapshot(conid);
+    return finalResponse ? this.mapSnapshotToQuote(finalResponse) : null;
+  }
+
+  private async fetchSnapshot(conid: number): Promise<IbkrSnapshotResponse | null> {
     const response = await this.client.get<IbkrSnapshotResponse[]>(
-      `/v1/api/iserver/marketdata/snapshot?conids=${conid}&fields=31,55,84,85,86,88,7762`
+      `/v1/api/iserver/marketdata/snapshot?conids=${conid}&fields=${IbkrMarketDataRepository.SNAPSHOT_FIELDS}`
     );
 
     if (!Array.isArray(response) || response.length === 0) {
       return null;
     }
 
-    return this.mapSnapshotToQuote(response[0]);
+    return response[0];
   }
 
-  private async resolveConid(symbol: string): Promise<number | null> {
+  private isQuoteComplete(quote: Quote): boolean {
+    // Consider complete if we have at least one price field
+    return quote.lastPrice !== undefined || quote.bidPrice !== undefined || quote.askPrice !== undefined;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async resolveConid(symbol: string, preferredSecType?: string): Promise<number | null> {
     const response = await this.client.get<IbkrSearchResult[]>(
       `/v1/api/iserver/secdef/search?symbol=${encodeURIComponent(symbol)}`
     );
@@ -78,14 +113,21 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
       return null;
     }
 
-    // Find exact symbol match, prefer STK (stock) type
+    // Find exact symbol match
     for (const item of response) {
       if (item.symbol?.toUpperCase() !== symbol.toUpperCase()) continue;
 
       if (item.sections && item.sections.length > 0) {
-        // Prefer STK section
-        const stkSection = item.sections.find((s) => s.secType === 'STK');
-        const section = stkSection ?? item.sections[0];
+        let section;
+        if (preferredSecType) {
+          // If secType specified, find exact match
+          section = item.sections.find((s) => s.secType === preferredSecType.toUpperCase());
+          if (!section) continue; // Skip if preferred type not found
+        } else {
+          // Default: prefer STK (stock) type, fallback to first
+          const stkSection = item.sections.find((s) => s.secType === 'STK');
+          section = stkSection ?? item.sections[0];
+        }
         const conid = this.parseConid(section.conid);
         if (conid) return conid;
       }
@@ -97,8 +139,16 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
     // Fallback: first result with a conid
     const first = response[0];
     if (first.sections && first.sections.length > 0) {
-      const conid = this.parseConid(first.sections[0].conid);
-      if (conid) return conid;
+      if (preferredSecType) {
+        const section = first.sections.find((s) => s.secType === preferredSecType.toUpperCase());
+        if (section) {
+          const conid = this.parseConid(section.conid);
+          if (conid) return conid;
+        }
+      } else {
+        const conid = this.parseConid(first.sections[0].conid);
+        if (conid) return conid;
+      }
     }
     return this.parseConid(first.conid) ?? null;
   }
@@ -116,8 +166,8 @@ export class IbkrMarketDataRepository implements MarketDataRepository {
       symbol: raw['55'] ?? '',
       lastPrice: this.parseNumber(raw['31']),
       bidPrice: this.parseNumber(raw['84']),
-      askPrice: this.parseNumber(raw['86']),
       bidSize: this.parseNumber(raw['88']),
+      askPrice: this.parseNumber(raw['86']),
       askSize: this.parseNumber(raw['85']),
       volume: this.parseNumber(raw['7762']),
       timestamp: raw._updated ? new Date(raw._updated) : new Date(),

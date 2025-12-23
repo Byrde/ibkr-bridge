@@ -64,15 +64,15 @@ Commands:
   order:place <conid> <side> <qty> [--type <type>] [--limit <price>]
                                   Place a new order
   order:cancel <orderId>          Cancel an order
-  instruments <query>             Search for instruments
-  quote <conid>                   Get quote for instrument
+  quote <symbol> [--secType <type>]
+                                  Get quote for symbol (optionally filter by security type)
 
 Examples:
   npm run cli -- health
   npm run cli -- account
   npm run cli -- positions
-  npm run cli -- instruments AAPL
-  npm run cli -- quote 265598
+  npm run cli -- quote AAPL
+  npm run cli -- quote SLV --secType ETF
   npm run cli -- order:place 265598 buy 10 --type limit --limit 150.00
   npm run cli -- orders
   npm run cli -- order:cancel 12345
@@ -169,26 +169,26 @@ async function main(): Promise<void> {
         break;
       }
 
-      case 'instruments': {
-        const query = args[1];
-        if (!query) {
-          console.error('Usage: instruments <query>');
-          process.exit(1);
-        }
-
-        const result = await request('GET', `/api/v1/instruments?q=${encodeURIComponent(query)}`);
-        printJson(result);
-        break;
-      }
-
       case 'quote': {
-        const conid = args[1];
-        if (!conid) {
-          console.error('Usage: quote <conid>');
+        const symbol = args[1];
+        if (!symbol) {
+          console.error('Usage: quote <symbol> [--secType <type>]');
           process.exit(1);
         }
 
-        const result = await request('GET', `/api/v1/quotes/${conid}`);
+        let url = `/api/v1/quote/${encodeURIComponent(symbol)}`;
+        let secType: string | undefined;
+        for (let i = 2; i < args.length; i++) {
+          if (args[i] === '--secType' && args[i + 1]) {
+            secType = args[i + 1];
+            i++;
+          }
+        }
+        if (secType) {
+          url += `?secType=${encodeURIComponent(secType)}`;
+        }
+
+        const result = await request('GET', url);
         printJson(result);
         break;
       }

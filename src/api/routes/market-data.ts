@@ -10,7 +10,7 @@ export async function marketDataRoutes(
   fastify: FastifyInstance,
   deps: MarketDataRouteDeps
 ): Promise<void> {
-  fastify.get<{ Params: { symbol: string } }>('/quote/:symbol', {
+  fastify.get<{ Params: { symbol: string }; Querystring: { secType?: string } }>('/quote/:symbol', {
     schema: {
       description: 'Get quote for a symbol',
       tags: ['Market Data'],
@@ -22,13 +22,26 @@ export async function marketDataRoutes(
         },
         required: ['symbol'],
       },
+      querystring: {
+        type: 'object',
+        properties: {
+          secType: {
+            type: 'string',
+            description: 'Security type filter (e.g., STK, ETF, FUT, OPT). Defaults to preferring STK if available.',
+            example: 'ETF',
+          },
+        },
+      },
       response: {
         200: QuoteSchema,
         404: ErrorSchema,
       },
     },
   }, async (request, reply) => {
-    const quote = await deps.marketDataRepository.getQuoteBySymbol(request.params.symbol);
+    const quote = await deps.marketDataRepository.getQuoteBySymbol(
+      request.params.symbol,
+      request.query.secType
+    );
     if (!quote) {
       return reply.status(404).send({ error: 'Symbol not found' });
     }

@@ -153,28 +153,40 @@ Cancel a pending order.
 npm run cli -- order:cancel <orderId>
 ```
 
-### instruments
-
-Search for instruments by symbol or name.
-
-```bash
-npm run cli -- instruments <query>
-```
-
-**Example:**
-```bash
-npm run cli -- instruments AAPL
-```
-
 ### quote
 
-Get current quote for an instrument.
+Get current quote for a symbol.
 
 ```bash
-npm run cli -- quote <conid>
+npm run cli -- quote <symbol> [--secType <type>]
 ```
 
-**Example:**
+**Arguments:**
+- `symbol` - Ticker symbol (e.g., `AAPL`, `SLV`)
+
+**Options:**
+- `--secType` - Optional security type filter (e.g., `STK`, `ETF`, `FUT`, `OPT`). If not specified, defaults to preferring `STK` (stock) type if available.
+
+**Examples:**
 ```bash
-npm run cli -- quote 265598
+# Get quote for AAPL (defaults to stock)
+npm run cli -- quote AAPL
+
+# Get quote for SLV as ETF
+npm run cli -- quote SLV --secType ETF
+```
+
+**Response:**
+```json
+{
+  "conid": 265598,
+  "symbol": "AAPL",
+  "lastPrice": 271.30,
+  "bidPrice": 271.10,
+  "askPrice": 271.30,
+  "bidSize": 100,
+  "askSize": 300,
+  "volume": 188700,
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
 ```

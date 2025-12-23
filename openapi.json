@@ -936,6 +936,16 @@
           {
             "schema": {
               "type": "string",
+              "example": "ETF"
+            },
+            "in": "query",
+            "name": "secType",
+            "required": false,
+            "description": "Security type filter (e.g., STK, ETF, FUT, OPT). Defaults to preferring STK if available."
+          },
+          {
+            "schema": {
+              "type": "string",
               "example": "AAPL"
             },
             "in": "path",
@@ -1097,31 +1107,40 @@
         "tags": [
           "Auth"
         ],
-        "description": "Authenticate with IBKR Gateway.\n\nIBKR credentials are passed via Basic Auth header.\n\n**Headers:**\n- `Authorization`: Basic Auth with IBKR username:password (required)\n- `X-TOTP-Secret`: TOTP secret for 2FA, base32 encoded (required for live trading)\n- `X-Paper-Trading`: Set to \"true\" for paper trading mode (optional)",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "header",
-            "name": "x-totp-secret",
-            "required": false,
-            "description": "TOTP secret for 2FA (base32 encoded). Required for live trading."
+        "description": "Authenticate with IBKR Gateway.\n\nIBKR credentials are passed in the request body.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "IBKR username"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "IBKR password"
+                  },
+                  "totpSecret": {
+                    "type": "string",
+                    "description": "TOTP secret for 2FA (base32 encoded). Required for live trading."
+                  },
+                  "paperTrading": {
+                    "type": "boolean",
+                    "description": "Enable paper trading mode. No TOTP required for paper trading.",
+                    "default": false
+                  }
+                }
+              }
+            }
           },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "in": "header",
-            "name": "x-paper-trading",
-            "required": false,
-            "description": "Enable paper trading mode. No TOTP required for paper trading."
-          }
-        ],
+          "required": true
+        },
         "security": [
           {
             "basicAuth": []

@@ -99,9 +99,7 @@ async function generateSpec() {
   };
 
   const mockMarketDataRepository = {
-    searchInstruments: async () => [],
-    getQuote: async () => null,
-    getQuotes: async () => [],
+    getQuoteBySymbol: async () => null,
   };
 
   // Register routes with mock dependencies

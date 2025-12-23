@@ -11,17 +11,6 @@ export interface Quote {
 }
 
 export interface MarketDataRepository {
-  getQuoteBySymbol(symbol: string): Promise<Quote | null>;
+  getQuoteBySymbol(symbol: string, secType?: string): Promise<Quote | null>;
 }
-
-
-
-
-
-
-
-
-
-
-
 
